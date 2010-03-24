@@ -1,0 +1,6 @@
+This package provides a store for TiddlyWeb using sqlalchemy.
+
+This is a repackaging of the concepts and concerns of the original
+sqlstore, renamed to avoid schema and other conflicts.
+
+Licensed as TiddlyWeb itself.
