@@ -13,6 +13,8 @@ from tiddlyweb.model.user import User
 
 from base64 import b64encode
 
+RANGE = 1000
+
 def setup_module(module):
     try:
         os.unlink('test.db')
@@ -25,7 +27,7 @@ def setup_module(module):
             )
 
 def test_make_a_bunch():
-    for x in xrange(10):
+    for x in xrange(RANGE):
         bag_name = u'bag%s' % x
         recipe_name = u'recipe%s' % x
         tiddler_name = u'tiddler%s' % x
@@ -65,10 +67,10 @@ def test_make_a_bunch():
     bags = [bag.name for bag in store.list_bags()]
     recipes = [recipe.name for recipe in store.list_recipes()]
     users = [user.usersign for user in store.list_users()]
-    assert len(bags) == 10
-    assert len(recipes) == 10
-    assert len(users) == 10
-    for x in xrange(10):
+    assert len(bags) == RANGE
+    assert len(recipes) == RANGE
+    assert len(users) == RANGE
+    for x in xrange(RANGE):
         bname = 'bag%s' % x
         rname = 'recipe%s' % x
         uname = 'user%s' % x
