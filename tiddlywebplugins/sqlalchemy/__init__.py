@@ -307,6 +307,31 @@ class Store(StorageInterface):
             self.session.rollback()
             raise
 
+    def list_bag_tiddlers(self, bag):
+        try:
+            try:
+                sbag = self.session.query(sBag).filter(sBag.name
+                        == bag.name).one()
+            except NoResultFound, exc:
+                raise NoBagError('no results for bag %s, %s' % (bag.name, exc))
+
+            try:
+                store = self.environ['tiddlyweb.store']
+            except KeyError:
+                store = bag.store
+
+            def _bags_tiddler(stiddler):
+                tiddler = Tiddler(stiddler.title)
+                tiddler = self._load_tiddler(tiddler, stiddler)
+                tiddler.store = store
+                return tiddler
+
+            for stiddler in sbag.tiddlers:
+                yield _bags_tiddler(stiddler)
+        except:
+            self.session.rollback()
+            raise
+
     def list_tiddler_revisions(self, tiddler):
         try:
             revisions = [row[0] for row in
@@ -374,23 +399,10 @@ class Store(StorageInterface):
             try:
                 sbag = self.session.query(sBag).filter(sBag.name == bag.name).one()
                 bag = self._load_bag(bag, sbag)
-
                 try:
                     store = self.environ['tiddlyweb.store']
                 except KeyError:
                     store = False
-
-                if not (hasattr(bag, 'skinny') and bag.skinny):
-
-                    def _bags_tiddler(stiddler):
-                        tiddler = Tiddler(stiddler.title)
-                        tiddler = self._load_tiddler(tiddler, stiddler)
-                        tiddler.store = store
-                        return tiddler
-
-                    stiddlers = sbag.tiddlers
-                    bag.add_tiddlers(_bags_tiddler(stiddler)
-                            for stiddler in stiddlers)
                 return bag
             except NoResultFound, exc:
                 raise NoBagError('Bag %s not found: %s' % (bag.name, exc))
