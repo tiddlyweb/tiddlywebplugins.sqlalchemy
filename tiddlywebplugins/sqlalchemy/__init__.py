@@ -31,7 +31,7 @@ Session = sessionmaker()
 field_table = Table('field', metadata,
     Column('bag_name', Unicode(128), nullable=False),
     Column('tiddler_title', Unicode(128), nullable=False),
-    Column('revision_number', Integer, nullable=False),
+    Column('revision_number', Integer, index=True, nullable=False),
     Column('name', Unicode(128), nullable=False),
     Column('value', Unicode(1024)),
     PrimaryKeyConstraint('bag_name', 'tiddler_title', 'revision_number',
@@ -73,15 +73,13 @@ bag_table = Table('bag', metadata,
 policy_table = Table('policy', metadata,
     Column('container_name', Unicode(128), nullable=False),
     Column('type', String(12), nullable=False),
-    Column('principal_name', Unicode(128), nullable=False),
+    Column('principal_name', Unicode(128), index=True, nullable=False),
     Column('principal_type', CHAR(1), nullable=False),
     PrimaryKeyConstraint('container_name', 'type'),
     ForeignKeyConstraint(['principal_name', 'principal_type'],
         ['principal.name', 'principal.type'],
         onupdate='CASCADE', ondelete='CASCADE'),
     )
-
-Index('policy_idx', policy_table.c.principal_name)
 
 recipe_table = Table('recipe', metadata,
     Column('name', Unicode(128), primary_key=True, nullable=False),
@@ -291,7 +289,6 @@ class Store(StorageInterface):
             raise
 
     def list_bags(self):
-        logging.debug('calling list_bags')
         try:
             return (self._load_bag(Bag(sbag.name), sbag)
                     for sbag in self.session.query(sBag).all())
@@ -324,6 +321,7 @@ class Store(StorageInterface):
                 tiddler = Tiddler(stiddler.title)
                 tiddler = self._load_tiddler(tiddler, stiddler)
                 tiddler.store = store
+                tiddler.bag = bag.name
                 return tiddler
 
             for stiddler in sbag.tiddlers:
@@ -495,7 +493,6 @@ class Store(StorageInterface):
             raise
 
     def _load_bag(self, bag, sbag):
-        logging.debug('loading bag %s', bag)
         bag.desc = sbag.desc
         bag.policy = self._load_policy(sbag.policy)
         bag.store = True
