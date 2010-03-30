@@ -13,7 +13,8 @@ from tiddlyweb.model.user import User
 
 from base64 import b64encode
 
-RANGE = 1000
+#RANGE = 1000
+RANGE = 10
 
 def setup_module(module):
     try:
