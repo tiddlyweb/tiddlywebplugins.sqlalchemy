@@ -3,6 +3,8 @@ Yet another attempt to get a good sql store.
 """
 import logging
 
+from tiddlyweb import __version__ as VERSION
+
 from base64 import b64encode, b64decode
 from sqlalchemy import select, desc
 from sqlalchemy.engine import create_engine
@@ -397,10 +399,9 @@ class Store(StorageInterface):
             try:
                 sbag = self.session.query(sBag).filter(sBag.name == bag.name).one()
                 bag = self._load_bag(bag, sbag)
-                try:
-                    store = self.environ['tiddlyweb.store']
-                except KeyError:
-                    store = False
+                if VERSION.startswith('1.0'):
+                    if not (hasattr(bag, 'skinny') and bag.skinny):
+                        bag.add_tiddlers(self.list_bag_tiddlers(bag))
                 return bag
             except NoResultFound, exc:
                 raise NoBagError('Bag %s not found: %s' % (bag.name, exc))
