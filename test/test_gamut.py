@@ -81,7 +81,10 @@ def test_make_a_bunch():
 
     bag = Bag('bag0')
     bag = store.get(bag)
-    tiddlers = list(bag.gen_tiddlers())
+    try:
+        tiddlers = list(store.list_bag_tiddlers(bag))
+    except AttributeError:
+        tiddlers = list(bag.gen_tiddlers())
     assert len(tiddlers) == 1
     assert tiddlers[0].title == 'tiddler0'
     assert tiddlers[0].fields['field0'] == 'field0'
@@ -180,3 +183,10 @@ def test_tiddler_revisions():
 def test_tiddler_no_bag():
     tiddler = Tiddler('hi')
     py.test.raises(NoBagError, 'store.put(tiddler)')
+
+def test_list_tiddlers_no_bag():
+    bag = Bag('carne')
+    try:
+        py.test.raises(NoBagError, 'store.list_bag_tiddlers(bag).next()')
+    except AttributeError:
+        assert True
