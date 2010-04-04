@@ -10,8 +10,8 @@ from sqlalchemy import select, desc
 from sqlalchemy.engine import create_engine
 from sqlalchemy.orm import relation, mapper, sessionmaker
 from sqlalchemy.orm.exc import NoResultFound
-from sqlalchemy.schema import Table, Column, PrimaryKeyConstraint,\
-    ForeignKeyConstraint, Index, MetaData
+from sqlalchemy.schema import (Table, Column, PrimaryKeyConstraint,
+        ForeignKeyConstraint, Index, MetaData)
 from sqlalchemy.sql.expression import and_
 from sqlalchemy.types import Unicode, Integer, String, UnicodeText, CHAR
 from tiddlyweb.model.bag import Bag
@@ -20,8 +20,8 @@ from tiddlyweb.model.recipe import Recipe
 from tiddlyweb.model.tiddler import Tiddler, string_to_tags_list
 from tiddlyweb.model.user import User
 from tiddlyweb.serializer import Serializer
-from tiddlyweb.store import NoBagError, NoRecipeError, NoTiddlerError, \
-    NoUserError
+from tiddlyweb.store import (NoBagError, NoRecipeError, NoTiddlerError,
+        NoUserError)
 from tiddlyweb.stores import StorageInterface
 
 #logging.basicConfig()
@@ -98,7 +98,7 @@ principal_table = Table('principal', metadata,
 role_table = Table('role', metadata,
     Column('user', Unicode(128), nullable=False),
     Column('name', Unicode(50), nullable=False),
-    PrimaryKeyConstraint('user','name'),
+    PrimaryKeyConstraint('user', 'name'),
     ForeignKeyConstraint(['user'], ['user.usersign'],
         onupdate='CASCADE', ondelete='CASCADE'),
     )
@@ -229,7 +229,7 @@ mapper(sBag, bag_table, properties=dict(
         backref='bag',
         cascade='delete'),
     policy=relation(sPolicy,
-        primaryjoin=(policy_table.c.container_name==bag_table.c.name),
+        primaryjoin=(policy_table.c.container_name == bag_table.c.name),
         cascade='delete',
         foreign_keys=policy_table.c.container_name,
         lazy=False)))
@@ -243,7 +243,7 @@ mapper(sPolicy, policy_table)
 
 mapper(sRecipe, recipe_table, properties=dict(
     policy=relation(sPolicy,
-        primaryjoin=(policy_table.c.container_name==recipe_table.c.name),
+        primaryjoin=(policy_table.c.container_name == recipe_table.c.name),
         cascade='delete',
         foreign_keys=policy_table.c.container_name,
         lazy=False)))
@@ -277,7 +277,6 @@ class Store(StorageInterface):
             Store.session = Session()
         self.session = Store.session
         self.serializer = Serializer('text')
-
 
     def _db_config(self):
         return self.store_config['db_config']
@@ -337,8 +336,8 @@ class Store(StorageInterface):
             revisions = [row[0] for row in
                     select([revision_table.c.number],
                         whereclause=and_(
-                            revision_table.c.tiddler_title==tiddler.title,
-                            revision_table.c.bag_name==tiddler.bag),
+                            revision_table.c.tiddler_title == tiddler.title,
+                            revision_table.c.bag_name == tiddler.bag),
                         order_by=desc(revision_table.c.number),
                         bind=self.session.get_bind(None)).execute()]
             if not revisions:
@@ -352,11 +351,13 @@ class Store(StorageInterface):
     def recipe_delete(self, recipe):
         try:
             try:
-                srecipe = self.session.query(sRecipe).filter(sRecipe.name==recipe.name).one()
+                srecipe = self.session.query(sRecipe).filter(sRecipe.name
+                        == recipe.name).one()
                 self.session.delete(srecipe)
                 self.session.commit()
             except NoResultFound, exc:
-                raise NoRecipeError('no results for recipe %s, %s' % (recipe.name, exc))
+                raise NoRecipeError('no results for recipe %s, %s' %
+                        (recipe.name, exc))
         except:
             self.session.rollback()
             raise
@@ -364,11 +365,13 @@ class Store(StorageInterface):
     def recipe_get(self, recipe):
         try:
             try:
-                srecipe = self.session.query(sRecipe).filter(sRecipe.name==recipe.name).one()
+                srecipe = self.session.query(sRecipe).filter(sRecipe.name
+                        == recipe.name).one()
                 recipe = self._load_recipe(recipe, srecipe)
                 return recipe
             except NoResultFound, exc:
-                raise NoRecipeError('no results for recipe %s, %s' % (recipe.name, exc))
+                raise NoRecipeError('no results for recipe %s, %s' %
+                        (recipe.name, exc))
         except:
             self.session.rollback()
             raise
@@ -385,7 +388,8 @@ class Store(StorageInterface):
     def bag_delete(self, bag):
         try:
             try:
-                sbag = self.session.query(sBag).filter(sBag.name==bag.name).one()
+                sbag = self.session.query(sBag).filter(sBag.name
+                        == bag.name).one()
                 self.session.delete(sbag)
                 self.session.commit()
             except NoResultFound, exc:
@@ -397,7 +401,8 @@ class Store(StorageInterface):
     def bag_get(self, bag):
         try:
             try:
-                sbag = self.session.query(sBag).filter(sBag.name == bag.name).one()
+                sbag = self.session.query(sBag).filter(sBag.name
+                        == bag.name).one()
                 bag = self._load_bag(bag, sbag)
                 if VERSION.startswith('1.0'):
                     if not (hasattr(bag, 'skinny') and bag.skinny):
@@ -422,13 +427,14 @@ class Store(StorageInterface):
         try:
             try:
                 stiddler = (self.session.query(sTiddler).
-                        filter(sTiddler.title==tiddler.title).
-                        filter(sTiddler.bag_name==tiddler.bag).one())
+                        filter(sTiddler.title == tiddler.title).
+                        filter(sTiddler.bag_name == tiddler.bag).one())
                 self.session.delete(stiddler)
                 self.session.commit()
                 self.tiddler_written(tiddler)
             except NoResultFound, exc:
-                raise NoTiddlerError('no tiddler %s to delete, %s' % (tiddler.title, exc))
+                raise NoTiddlerError('no tiddler %s to delete, %s' %
+                        (tiddler.title, exc))
         except:
             self.session.rollback()
             raise
@@ -437,12 +443,13 @@ class Store(StorageInterface):
         try:
             try:
                 stiddler = (self.session.query(sTiddler).
-                        filter(sTiddler.title==tiddler.title).
-                        filter(sTiddler.bag_name==tiddler.bag).one())
+                        filter(sTiddler.title == tiddler.title).
+                        filter(sTiddler.bag_name == tiddler.bag).one())
                 tiddler = self._load_tiddler(tiddler, stiddler)
                 return tiddler
             except NoResultFound, exc:
-                raise NoTiddlerError('Tiddler %s not found: %s' % (tiddler.title, exc))
+                raise NoTiddlerError('Tiddler %s not found: %s' %
+                        (tiddler.title, exc))
         except:
             self.session.rollback()
             raise
@@ -462,11 +469,13 @@ class Store(StorageInterface):
     def user_delete(self, user):
         try:
             try:
-                suser = self.session.query(sUser).filter(sUser.usersign==user.usersign).one()
+                suser = self.session.query(sUser).filter(sUser.usersign
+                        == user.usersign).one()
                 self.session.delete(suser)
                 self.session.commit()
             except NoResultFound, exc:
-                raise NoUserError('user %s not found, %s' % (user.usersign, exc))
+                raise NoUserError('user %s not found, %s' %
+                        (user.usersign, exc))
         except:
             self.session.rollback()
             raise
@@ -474,11 +483,13 @@ class Store(StorageInterface):
     def user_get(self, user):
         try:
             try:
-                suser = self.session.query(sUser).filter(sUser.usersign==user.usersign).one()
+                suser = self.session.query(sUser).filter(sUser.usersign
+                        == user.usersign).one()
                 user = self._load_user(user, suser)
                 return user
             except NoResultFound, exc:
-                raise NoUserError('user %s not found, %s' % (user.usersign, exc))
+                raise NoUserError('user %s not found, %s' %
+                        (user.usersign, exc))
         except:
             self.session.rollback()
             raise
@@ -526,7 +537,8 @@ class Store(StorageInterface):
             tiddler.revision = revision.number
             tiddler.type = revision.type
 
-            if tiddler.type and tiddler.type != 'None' and not tiddler.type.startswith('text/'):
+            if (tiddler.type and tiddler.type != 'None' and not
+                    tiddler.type.startswith('text/')):
                 tiddler.text = b64decode(revision.text.lstrip().rstrip())
             else:
                 tiddler.text = revision.text
@@ -592,9 +604,9 @@ class Store(StorageInterface):
                         ptype = 'U'
 
                     try:
-                        sprincipal=(self.session.query(sPrincipal).
-                                    filter(sPrincipal.name==pname).
-                                    filter(sPrincipal.type==ptype).one())
+                        sprincipal = (self.session.query(sPrincipal).
+                                    filter(sPrincipal.name == pname).
+                                    filter(sPrincipal.type == ptype).one())
                     except NoResultFound:
                         sprincipal = sPrincipal()
                         sprincipal.name = pname
@@ -638,7 +650,8 @@ class Store(StorageInterface):
             stiddler = sTiddler(tiddler.title, tiddler.bag)
             self.session.add(stiddler)
 
-        if tiddler.type and tiddler.type != 'None' and not tiddler.type.startswith('text/'):
+        if (tiddler.type and tiddler.type != 'None' and not
+                tiddler.type.startswith('text/')):
             tiddler.text = unicode(b64encode(tiddler.text))
 
         srevision = sRevision()
@@ -681,7 +694,7 @@ class Store(StorageInterface):
 
     def _tiddler_exists(self, tiddler_title, bag_name):
         rows = tiddler_table.select(
-                and_(tiddler_table.c.title==tiddler_title,
-                    tiddler_table.c.bag_name==bag_name),
+                and_(tiddler_table.c.title == tiddler_title,
+                    tiddler_table.c.bag_name == bag_name),
                 bind=self.session.get_bind(None)).execute().fetchone()
         return rows is not None
