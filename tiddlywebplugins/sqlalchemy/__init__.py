@@ -8,7 +8,7 @@ from tiddlyweb import __version__ as VERSION
 from base64 import b64encode, b64decode
 from sqlalchemy import select, desc
 from sqlalchemy.engine import create_engine
-from sqlalchemy.orm import relation, mapper, sessionmaker
+from sqlalchemy.orm import relation, mapper, sessionmaker, scoped_session
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.schema import (Table, Column, PrimaryKeyConstraint,
         ForeignKeyConstraint, Index, MetaData)
@@ -28,7 +28,7 @@ from tiddlyweb.stores import StorageInterface
 #logging.getLogger('sqlalchemy.engine').setLevel(logging.INFO)
 
 metadata = MetaData()
-Session = sessionmaker()
+Session = scoped_session(sessionmaker())
 
 field_table = Table('field', metadata,
     Column('bag_name', Unicode(128), nullable=False),
