@@ -34,7 +34,7 @@ field_table = Table('field', metadata,
     Column('bag_name', Unicode(128), nullable=False),
     Column('tiddler_title', Unicode(128), nullable=False),
     Column('revision_number', Integer, index=True, nullable=False),
-    Column('name', Unicode(128), nullable=False),
+    Column('name', Unicode(64), nullable=False),
     Column('value', Unicode(1024)),
     PrimaryKeyConstraint('bag_name', 'tiddler_title', 'revision_number',
         'name'),
@@ -258,7 +258,7 @@ class Store(StorageInterface):
     A SqlAlchemy based storage interface for TiddlyWeb.
     """
 
-    session = None
+    mapped = False
 
     def __init__(self, store_config=None, environ=None):
         super(Store, self).__init__(store_config, environ)
@@ -270,13 +270,15 @@ class Store(StorageInterface):
         creating tables if needed.
         """
         store_type = self._db_config().split(':', 1)[0]
-        if store_type == 'sqlite' or not Store.session:
-            engine = create_engine(self._db_config(), pool_recycle=True)
-            metadata.create_all(engine)
-            Session.configure(bind=engine)
-            Store.session = Session()
-        self.session = Store.session
+        engine = create_engine(self._db_config())
+        metadata.bind = engine
+        Session.configure(bind=engine)
+        self.session = Session()
         self.serializer = Serializer('text')
+
+        if not Store.mapped:
+            metadata.create_all(engine)
+            Store.mapped = True
 
     def _db_config(self):
         return self.store_config['db_config']
@@ -552,8 +554,13 @@ class Store(StorageInterface):
 
             return tiddler
         except IndexError, exc:
-            raise NoTiddlerError('No revision %s for tiddler %s, %s' %
-                    (stiddler.rev, stiddler.title, exc))
+            try:
+                index_error = exc
+                raise NoTiddlerError('No revision %s for tiddler %s, %s' %
+                        (stiddler.rev, stiddler.title, exc))
+            except AttributeError:
+                raise NoTiddlerError('No tiddler for tiddler %s, %s' %
+                        (stiddler.title, index_error))
 
     def _load_recipe(self, recipe, srecipe):
         recipe.desc = srecipe.desc
