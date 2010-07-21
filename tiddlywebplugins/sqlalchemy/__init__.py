@@ -33,8 +33,8 @@ metadata = MetaData()
 Session = scoped_session(sessionmaker())
 
 field_table = Table('field', metadata,
-    Column('revision_number', Integer, nullable=False),
-    Column('name', Unicode(64), nullable=False),
+    Column('revision_number', Integer, index=True, nullable=False),
+    Column('name', Unicode(64), index=True, nullable=False),
     Column('value', Unicode(1024)),
     PrimaryKeyConstraint('revision_number', 'name'),
     ForeignKeyConstraint(['revision_number'],
@@ -43,8 +43,8 @@ field_table = Table('field', metadata,
     )
 
 revision_table = Table('revision', metadata,
-    Column('bag_name', Unicode(128), nullable=False),
-    Column('tiddler_title', Unicode(128), nullable=False),
+    Column('bag_name', Unicode(128), index=True, nullable=False),
+    Column('tiddler_title', Unicode(128), index=True, nullable=False),
     Column('number', Integer, primary_key=True, nullable=False,
         autoincrement=True),
     Column('modifier', Unicode(128)),
