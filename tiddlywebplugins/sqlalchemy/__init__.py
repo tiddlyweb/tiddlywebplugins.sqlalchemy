@@ -33,9 +33,10 @@ metadata = MetaData()
 Session = scoped_session(sessionmaker())
 
 field_table = Table('field', metadata,
-    Column('revision_number', Integer, primary_key=True, nullable=False),
+    Column('revision_number', Integer, nullable=False),
     Column('name', Unicode(64), nullable=False),
     Column('value', Unicode(1024)),
+    PrimaryKeyConstraint('revision_number', 'name'),
     ForeignKeyConstraint(['revision_number'],
                          ['revision.number'],
                          onupdate='CASCADE', ondelete='CASCADE'),
