@@ -166,8 +166,9 @@ def test_tiddler_revisions():
 
     revisions = store.list_tiddler_revisions(Tiddler('oh hi', bag_name))
     assert len(revisions) == 20
+    first_revision = revisions[-1]
     tiddler = Tiddler('oh hi', bag_name)
-    tiddler.revision = 14
+    tiddler.revision = first_revision + 13
     tiddler = store.get(tiddler)
     assert tiddler.title == 'oh hi'
     assert tiddler.text == '13 times we go'

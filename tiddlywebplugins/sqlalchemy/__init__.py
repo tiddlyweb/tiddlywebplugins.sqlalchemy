@@ -11,7 +11,7 @@ from sqlalchemy.engine import create_engine
 from sqlalchemy.orm import relation, mapper, sessionmaker, scoped_session
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.schema import (Table, Column, PrimaryKeyConstraint,
-        ForeignKeyConstraint, Index, MetaData)
+        UniqueConstraint, ForeignKeyConstraint, Index, MetaData)
 from sqlalchemy.sql import func
 from sqlalchemy.sql.expression import and_, text as text_
 from sqlalchemy.types import Unicode, Integer, String, UnicodeText, CHAR
@@ -33,29 +33,25 @@ metadata = MetaData()
 Session = scoped_session(sessionmaker())
 
 field_table = Table('field', metadata,
-    Column('bag_name', Unicode(128), nullable=False),
-    Column('tiddler_title', Unicode(128), nullable=False),
-    Column('revision_number', Integer, index=True, nullable=False),
+    Column('revision_number', Integer, primary_key=True, nullable=False),
     Column('name', Unicode(64), nullable=False),
     Column('value', Unicode(1024)),
-    PrimaryKeyConstraint('bag_name', 'tiddler_title', 'revision_number',
-        'name'),
-    ForeignKeyConstraint(['bag_name', 'tiddler_title', 'revision_number'],
-                         ['revision.bag_name', 'revision.tiddler_title',
-                             'revision.number'],
+    ForeignKeyConstraint(['revision_number'],
+                         ['revision.number'],
                          onupdate='CASCADE', ondelete='CASCADE'),
     )
 
 revision_table = Table('revision', metadata,
     Column('bag_name', Unicode(128), nullable=False),
     Column('tiddler_title', Unicode(128), nullable=False),
-    Column('number', Integer, nullable=False),
+    Column('number', Integer, primary_key=True, nullable=False,
+        autoincrement=True),
     Column('modifier', Unicode(128)),
     Column('modified', String(14)),
     Column('type', String(128)),
     Column('tags', Unicode(1024)),
     Column('text', UnicodeText(16777215), nullable=False, default=u''),
-    PrimaryKeyConstraint('bag_name', 'tiddler_title', 'number'),
+    UniqueConstraint('bag_name', 'tiddler_title', 'number'),
     ForeignKeyConstraint(['bag_name', 'tiddler_title'],
                          ['bag.name'],
                          onupdate='CASCADE', ondelete='CASCADE'),
@@ -118,7 +114,7 @@ class sField(object):
 
 class sRevision(object):
 
-    def __init__(self, title, bag_name, rev=1):
+    def __init__(self, title, bag_name, rev=0):
         object.__init__(self)
         self.tiddler_title = title
         self.bag_name = bag_name
@@ -430,19 +426,13 @@ class Store(StorageInterface):
     def tiddler_put(self, tiddler):
         tiddler.revision = None
         try:
-            try:
-                if self.store_type != 'sqlite':
-                    self.session.begin_nested()
-                if not tiddler.bag:
-                    raise NoBagError('bag required to save')
-                stiddler = self._store_tiddler(tiddler)
-                self.session.merge(stiddler)
-                if self.store_type != 'sqlite':
-                    self.session.commit()
-            except:
-                if self.store_type != 'sqlite':
-                    self.session.rollback()
-                raise
+            if not tiddler.bag:
+                raise NoBagError('bag required to save')
+            stiddler = self._store_tiddler(tiddler)
+            self.session.add(stiddler)
+            tiddler.revision = stiddler.number
+            if self.store_type != 'sqlite':
+                self.session.commit()
             self.tiddler_written(tiddler)
             self.session.commit()
         except:
@@ -628,31 +618,30 @@ class Store(StorageInterface):
         return self.serializer.serialization.tags_as(tags)
 
     def _store_tiddler(self, tiddler):
-        srevision = self._tiddler_exists(tiddler.title, tiddler.bag)
-        if srevision:
-            srevision = sRevision(tiddler.title, tiddler.bag, srevision.number)
+        if tiddler.revision:
+            srevision = sRevision(tiddler.title, tiddler.bag, tiddler.revision)
         else:
-            srevision = sRevision(tiddler.title, tiddler.bag, 0)
+            srevision = sRevision(tiddler.title, tiddler.bag, None)
 
         if binary_tiddler(tiddler):
             tiddler.text = unicode(b64encode(tiddler.text))
 
-        srevision.number = srevision.number + 1
         srevision.type = tiddler.type
         srevision.modified = tiddler.modified
         srevision.modifier = tiddler.modifier
         srevision.text = tiddler.text
         srevision.tags = self._store_tags(tiddler.tags)
+        self.session.add(srevision)
+        self.session.flush()
 
         for field in tiddler.fields:
             if field.startswith('server.'):
                 continue
             sfield = sField(field, tiddler.fields[field])
-            self.session.add(sfield)
+            sfield.revision_number = srevision.number
+            self.session.merge(sfield)
             srevision.fields.append(sfield)
 
-        self.session.add(srevision)
-        tiddler.revision = srevision.number
         return srevision
 
     def _store_user(self, user):
@@ -661,14 +650,3 @@ class Store(StorageInterface):
         suser.password = user._password
         suser.note = user.note
         return suser
-
-    def _tiddler_exists(self, tiddler_title, bag_name):
-        query = (self.session.query(sRevision).
-                filter(sRevision.tiddler_title == tiddler_title).
-                filter(sRevision.bag_name == bag_name))
-        query = query.order_by(sRevision.number.desc()).limit(1)
-        try:
-            stiddler = query.one()
-            return stiddler
-        except NoResultFound:
-            return None
