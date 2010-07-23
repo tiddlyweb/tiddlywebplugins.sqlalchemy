@@ -3,4 +3,16 @@ This package provides a store for TiddlyWeb using sqlalchemy.
 This is a repackaging of the concepts and concerns of the original
 sqlstore, renamed to avoid schema and other conflicts.
 
+In the version jump from 0.3 to 0.5 the schema has changed. If you
+have existing stores using 0.3 or prior, you will need to use
+tiddlywebplugins.migrate. While you can migrate from sql to sql directly
+because of namespace collisions it might be easiest to:
+
+    migrate from old sql to text
+    remove the sql database
+    install the new sqlalchemy plugin
+    migrate from text to sql
+
 Licensed as TiddlyWeb itself.
+
+Copyright 2010, Chris Dent <cdent@peermore.com>
