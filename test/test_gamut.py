@@ -43,13 +43,13 @@ def test_make_a_bunch():
 
         bag = Bag(bag_name)
         bag.policy.owner = u'owner%s' % x
-        bag.policy.read = [u'hi%s' % x]
-        bag.policy.manage = [u'R:hi%s' % x]
+        bag.policy.read = [u'hi%s' % x, 'andextra']
+        bag.policy.manage = [u'R:hi%s' % x, 'andmanage']
         store.put(bag)
         recipe = Recipe(recipe_name)
         recipe.policy.owner = u'owner%s' % x
-        recipe.policy.read = [u'hi%s' % x]
-        recipe.policy.manage = [u'R:hi%s' % x]
+        recipe.policy.read = [u'hi%s' % x, 'andextra']
+        recipe.policy.manage = [u'R:hi%s' % x, 'andmanage']
         recipe.set_recipe(recipe_list)
         store.put(recipe)
         tiddler = Tiddler(tiddler_name, bag_name)
@@ -89,8 +89,8 @@ def test_make_a_bunch():
     assert tiddlers[0].title == 'tiddler0'
     assert tiddlers[0].fields['field0'] == 'field0'
     assert tiddlers[0].tags == ['tag0']
-    assert bag.policy.read == ['hi0']
-    assert bag.policy.manage == ['R:hi0']
+    assert sorted(bag.policy.read) == ['andextra', 'hi0']
+    assert sorted(bag.policy.manage) == ['R:hi0', 'andmanage']
     assert bag.policy.owner == 'owner0'
 
     user = User('user1')
@@ -107,9 +107,16 @@ def test_make_a_bunch():
     bags = [bag_name for bag_name, filter in recipe.get_recipe()]
     assert len(bags) == 1
     assert 'bag2' in bags
-    assert recipe.policy.read == ['hi2']
-    assert recipe.policy.manage == ['R:hi2']
+    assert sorted(recipe.policy.read) == ['andextra', 'hi2']
+    assert sorted(recipe.policy.manage) == ['R:hi2', 'andmanage']
     assert recipe.policy.owner == 'owner2'
+
+    recipe.policy.manage = ['andmanage']
+    store.put(recipe)
+
+    recipe = Recipe ('recipe2')
+    recipe = store.get(recipe)
+    assert recipe.policy.manage == ['andmanage']
 
     # delete the above things
     store.delete(bag)

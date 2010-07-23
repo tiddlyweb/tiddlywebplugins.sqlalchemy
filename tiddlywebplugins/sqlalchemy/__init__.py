@@ -63,27 +63,20 @@ bag_table = Table('bag', metadata,
     Column('desc', Unicode(1024)),
     )
 
-policy_table = Table('policy', metadata,
-    Column('container_name', Unicode(128), nullable=False),
-    Column('type', String(12), nullable=False),
-    Column('principal_name', Unicode(128), index=True, nullable=False),
-    Column('principal_type', CHAR(1), nullable=False),
-    PrimaryKeyConstraint('container_name', 'type'),
-    ForeignKeyConstraint(['principal_name', 'principal_type'],
-        ['principal.name', 'principal.type'],
-        onupdate='CASCADE', ondelete='CASCADE'),
-    )
-
 recipe_table = Table('recipe', metadata,
     Column('name', Unicode(128), primary_key=True, nullable=False),
     Column('desc', Unicode(1024)),
     Column('recipe_string', UnicodeText, default=u''),
     )
 
-principal_table = Table('principal', metadata,
-    Column('name', Unicode(128), nullable=False),
-    Column('type', CHAR(1), nullable=False),
-    PrimaryKeyConstraint('name', 'type'),
+policy_table = Table('policy', metadata,
+    Column('container_type', String(10), nullable=False),
+    Column('container_name', Unicode(128), nullable=False),
+    Column('constraint', String(12), nullable=False),
+    Column('principal_name', Unicode(128), index=True, nullable=False),
+    Column('principal_type', CHAR(1), nullable=False),
+    PrimaryKeyConstraint('container_type', 'container_name', 'constraint',
+        'principal_name', 'principal_type'),
     )
 
 role_table = Table('role', metadata,
@@ -129,8 +122,9 @@ class sRevision(object):
 class sPolicy(object):
 
     def __repr__(self):
-        return '<sPolicy(%s:%s:%s:%s)>' % (self.container_name,
-                self.principal_type, self.principal_name, self.type)
+        return '<sPolicy(%s:%s:%s:%s:%s)>' % (self.container_type,
+                self.container_name, self.principal_type,
+                self.principal_name, self.constraint)
 
 
 class sBag(object):
@@ -152,12 +146,6 @@ class sRecipe(object):
 
     def __repr__(self):
         return '<sRecipe(%s)>' % (self.name)
-
-
-class sPrincipal(object):
-
-    def __repr__(self):
-        return '<sPrincipal(%s:%s)>' % (self.type, self.name)
 
 
 class sRole(object):
@@ -187,7 +175,9 @@ mapper(sBag, bag_table, properties=dict(
         primaryjoin=(revision_table.c.bag_name==bag_table.c.name)
         ),
     policy=relation(sPolicy,
-        primaryjoin=(policy_table.c.container_name == bag_table.c.name),
+        primaryjoin=(and_(
+            policy_table.c.container_name == bag_table.c.name,
+            policy_table.c.container_type == 'bag')),
         cascade='delete',
         foreign_keys=policy_table.c.container_name,
         lazy=False)))
@@ -201,14 +191,14 @@ mapper(sPolicy, policy_table)
 
 mapper(sRecipe, recipe_table, properties=dict(
     policy=relation(sPolicy,
-        primaryjoin=(policy_table.c.container_name == recipe_table.c.name),
+        primaryjoin=(and_(
+            policy_table.c.container_name == recipe_table.c.name,
+            policy_table.c.container_type == 'recipe')),
         cascade='delete',
         foreign_keys=policy_table.c.container_name,
         lazy=False)))
 
 mapper(sRole, role_table)
-
-mapper(sPrincipal, principal_table)
 
 
 class Store(StorageInterface):
@@ -491,12 +481,12 @@ class Store(StorageInterface):
                 principal_name = pol.principal_name
                 if pol.principal_type == 'R':
                     principal_name = 'R:%s' % pol.principal_name
-                if pol.type == 'owner':
+                if pol.constraint == 'owner':
                     policy.owner = principal_name
                 else:
-                    principals = getattr(policy, pol.type, [])
+                    principals = getattr(policy, pol.constraint, [])
                     principals.append(principal_name)
-                    setattr(policy, pol.type, principals)
+                    setattr(policy, pol.constraint, principals)
         return policy
 
     def _load_tiddler(self, tiddler, stiddler, base_tiddler):
@@ -557,11 +547,18 @@ class Store(StorageInterface):
         return user
 
     def _store_bag(self, bag):
-        sbag = sBag(bag.name, bag.desc)
-        self._store_policy(bag.name, bag.policy)
+        try:
+            sbag = self.session.query(sBag).filter(
+                    sBag.name==bag.name).one()
+        except NoResultFound:
+            sbag = sBag(bag.name, bag.desc)
+        for p in sbag.policy:
+            self.session.delete(p)
+        sbag.desc = bag.desc
+        self._store_policy('bag', bag.name, bag.policy)
         return sbag
 
-    def _store_policy(self, container, policy):
+    def _store_policy(self, container_type, container, policy):
         for attribute in policy.attributes:
 
             if attribute == 'owner':
@@ -570,7 +567,8 @@ class Store(StorageInterface):
                 if principal_name is not None:
                     spolicy = sPolicy()
                     spolicy.container_name = container
-                    spolicy.type = attribute
+                    spolicy.container_type = container_type
+                    spolicy.constraint = attribute
 
                     if principal_name.startswith('R:'):
                         pname = principal_name[2:]
@@ -579,24 +577,20 @@ class Store(StorageInterface):
                         pname = principal_name
                         ptype = 'U'
 
-                    try:
-                        sprincipal = (self.session.query(sPrincipal).
-                                    filter(sPrincipal.name == pname).
-                                    filter(sPrincipal.type == ptype).one())
-                    except NoResultFound:
-                        sprincipal = sPrincipal()
-                        sprincipal.name = pname
-                        sprincipal.type = ptype
-                        self.session.add(sprincipal)
-                        self.session.flush()
-
-                    spolicy.principal_name = sprincipal.name
-                    spolicy.principal_type = sprincipal.type
+                    spolicy.principal_name = pname
+                    spolicy.principal_type = ptype
                     self.session.merge(spolicy)
 
     def _store_recipe(self, recipe):
-        srecipe = sRecipe(recipe.name, recipe.desc)
-        self._store_policy(recipe.name, recipe.policy)
+        try:
+            srecipe = self.session.query(sRecipe).filter(
+                    sRecipe.name==recipe.name).one()
+        except NoResultFound:
+            srecipe = sRecipe(recipe.name, recipe.desc)
+        for p in srecipe.policy:
+            self.session.delete(p)
+        srecipe.desc = recipe.desc
+        self._store_policy('recipe', recipe.name, recipe.policy)
         srecipe.recipe_string = self._store_recipe_string(recipe)
         return srecipe
 
