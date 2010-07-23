@@ -377,15 +377,16 @@ class Store(StorageInterface):
     def tiddler_delete(self, tiddler):
         try:
             try:
-                stiddler = (self.session.query(sRevision).
+                stiddlers = (self.session.query(sRevision).
                         filter(sRevision.tiddler_title == tiddler.title).
                         filter(sRevision.bag_name == tiddler.bag))
-                rows = stiddler.delete()
+                rows = stiddlers.delete(synchronize_session='fetch')
                 if rows == 0:
                     raise NoResultFound
                 self.session.commit()
                 self.tiddler_written(tiddler)
             except NoResultFound, exc:
+                self.session.rollback()
                 raise NoTiddlerError('no tiddler %s to delete, %s' %
                         (tiddler.title, exc))
         except:
