@@ -181,6 +181,35 @@ def test_tiddler_revisions():
     py.test.raises(NoTiddlerError,
             'store.list_tiddler_revisions(Tiddler("sleepy", "cow"))')
 
+def test_interleaved_tiddler_revisions():
+    bag_name = u'bag8'
+    for i in xrange(20):
+        tiddler1 = Tiddler(u'oh yes', bag_name)
+        tiddler2 = Tiddler(u'oh no', bag_name)
+        tiddler1.text = u'%s times we yes' % i
+        tiddler2.text = u'%s times we no' % i
+        tiddler1.fields[u'%s' % i] = u'%s' % i
+        tiddler2.fields[u'%s' % i] = u'%s' % i
+        store.put(tiddler1)
+        store.put(tiddler2)
+
+    revisions = store.list_tiddler_revisions(Tiddler('oh yes', bag_name))
+    assert len(revisions) == 20
+    first_revision = revisions[-1]
+    tiddler = Tiddler('oh yes', bag_name)
+    tiddler.revision = first_revision + 26 
+    tiddler = store.get(tiddler)
+    assert tiddler.title == 'oh yes'
+    assert tiddler.text == '13 times we yes'
+    assert tiddler.fields['13'] == '13'
+    assert '12' not in tiddler.fields
+
+    tiddler.revision = 90
+    py.test.raises(NoTiddlerError, 'store.get(tiddler)')
+
+    py.test.raises(NoTiddlerError,
+            'store.list_tiddler_revisions(Tiddler("sleepy", "cow"))')
+
 def test_tiddler_no_bag():
     tiddler = Tiddler('hi')
     py.test.raises(NoBagError, 'store.put(tiddler)')

@@ -432,8 +432,7 @@ class Store(StorageInterface):
             stiddler = self._store_tiddler(tiddler)
             self.session.add(stiddler)
             tiddler.revision = stiddler.number
-            if self.store_type != 'sqlite':
-                self.session.commit()
+            self.session.commit()
             self.tiddler_written(tiddler)
             self.session.commit()
         except:
@@ -640,8 +639,8 @@ class Store(StorageInterface):
                 continue
             sfield = sField(field, tiddler.fields[field])
             sfield.revision_number = srevision.number
-            self.session.merge(sfield)
             srevision.fields.append(sfield)
+            self.session.merge(sfield)
 
         return srevision
 
