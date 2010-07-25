@@ -11,7 +11,7 @@ from sqlalchemy.engine import create_engine
 from sqlalchemy.orm import relation, mapper, sessionmaker, scoped_session
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.schema import (Table, Column, PrimaryKeyConstraint,
-        UniqueConstraint, ForeignKeyConstraint, Index, MetaData)
+        UniqueConstraint, ForeignKey, ForeignKeyConstraint, Index, MetaData)
 from sqlalchemy.sql import func
 from sqlalchemy.sql.expression import and_, text as text_
 from sqlalchemy.types import Unicode, Integer, String, UnicodeText, CHAR
@@ -59,24 +59,51 @@ revision_table = Table('revision', metadata,
     )
 
 bag_table = Table('bag', metadata,
-    Column('name', Unicode(128), primary_key=True),
+    Column('id', Integer, primary_key=True, nullable=False,
+        autoincrement=True),
+    Column('name', Unicode(128), index=True),
     Column('desc', Unicode(1024)),
+    UniqueConstraint('id', 'name'),
+    )
+
+bag_policy_table = Table('bag_policy', metadata,
+    Column('bag_id', Integer, ForeignKey('bag.id'), nullable=False),
+    Column('policy_id', Integer, ForeignKey('policy.id'), nullable=False),
+    #UniqueConstraint('bag_id', 'policy_id'),
+    ForeignKeyConstraint(['bag_id'],
+        ['bag.id'],
+        onupdate='CASCADE', ondelete='CASCADE'),
+    ForeignKeyConstraint(['policy_id'],
+        ['policy.id'],
+        onupdate='CASCADE', ondelete='CASCADE'),
     )
 
 recipe_table = Table('recipe', metadata,
-    Column('name', Unicode(128), primary_key=True, nullable=False),
+    Column('id', Integer, primary_key=True, nullable=False,
+        autoincrement=True),
+    Column('name', Unicode(128), index=True, nullable=False),
     Column('desc', Unicode(1024)),
     Column('recipe_string', UnicodeText, default=u''),
+    UniqueConstraint('id', 'name'),
+    )
+
+recipe_policy_table = Table('recipe_policy', metadata,
+    Column('recipe_id', Integer, ForeignKey('recipe.id'), nullable=False),
+    Column('policy_id', Integer, ForeignKey('policy.id'), nullable=False),
+    #UniqueConstraint('recipe_id', 'policy_id'),
+    ForeignKeyConstraint(['recipe_id'],
+        ['recipe.id'],
+        onupdate='CASCADE', ondelete='CASCADE'),
+    ForeignKeyConstraint(['policy_id'],
+        ['policy.id'],
+        onupdate='CASCADE', ondelete='CASCADE'),
     )
 
 policy_table = Table('policy', metadata,
-    Column('container_type', String(10), nullable=False),
-    Column('container_name', Unicode(128), nullable=False),
+    Column('id', Integer, nullable=False, primary_key=True, autoincrement=True),
     Column('constraint', String(12), nullable=False),
     Column('principal_name', Unicode(128), index=True, nullable=False),
     Column('principal_type', CHAR(1), nullable=False),
-    PrimaryKeyConstraint('container_type', 'container_name', 'constraint',
-        'principal_name', 'principal_type'),
     )
 
 role_table = Table('role', metadata,
@@ -121,10 +148,13 @@ class sRevision(object):
 
 class sPolicy(object):
 
+    def __init__(self, id=None):
+        object.__init__(self)
+        self.id = id
+
     def __repr__(self):
-        return '<sPolicy(%s:%s:%s:%s:%s)>' % (self.container_type,
-                self.container_name, self.principal_type,
-                self.principal_name, self.constraint)
+        return '<sPolicy(%s:%s:%s:%s)>' % (self.id,
+                self.principal_type, self.principal_name, self.constraint)
 
 
 class sBag(object):
@@ -135,7 +165,7 @@ class sBag(object):
         self.desc = desc
 
     def __repr__(self):
-        return '<sBag(%s)>' % (self.name)
+        return '<sBag(%s:%s)>' % (self.id, self.name)
 
 
 class sRecipe(object):
@@ -145,7 +175,7 @@ class sRecipe(object):
         self.desc = desc
 
     def __repr__(self):
-        return '<sRecipe(%s)>' % (self.name)
+        return '<sRecipe(%s:%s)>' % (self.id, self.name)
 
 
 class sRole(object):
@@ -174,12 +204,11 @@ mapper(sBag, bag_table, properties=dict(
         cascade='delete',
         primaryjoin=(revision_table.c.bag_name==bag_table.c.name)
         ),
-    policy=relation(sPolicy,
-        primaryjoin=(and_(
-            policy_table.c.container_name == bag_table.c.name,
-            policy_table.c.container_type == 'bag')),
-        cascade='delete',
-        foreign_keys=policy_table.c.container_name,
+    policy=relation(sPolicy, secondary=bag_policy_table,
+        primaryjoin=(bag_policy_table.c.bag_id == bag_table.c.id),
+        secondaryjoin=(bag_policy_table.c.policy_id == policy_table.c.id),
+        cascade='all',
+        passive_updates=False,
         lazy=False)))
 
 mapper(sUser, user_table, properties=dict(
@@ -190,12 +219,11 @@ mapper(sUser, user_table, properties=dict(
 mapper(sPolicy, policy_table)
 
 mapper(sRecipe, recipe_table, properties=dict(
-    policy=relation(sPolicy,
-        primaryjoin=(and_(
-            policy_table.c.container_name == recipe_table.c.name,
-            policy_table.c.container_type == 'recipe')),
-        cascade='delete',
-        foreign_keys=policy_table.c.container_name,
+    policy=relation(sPolicy, secondary=recipe_policy_table,
+        primaryjoin=(recipe_table.c.id == recipe_policy_table.c.recipe_id),
+        secondaryjoin=(recipe_policy_table.c.policy_id == policy_table.c.id),
+        cascade='all',
+        passive_updates=False,
         lazy=False)))
 
 mapper(sRole, role_table)
@@ -553,22 +581,28 @@ class Store(StorageInterface):
                     sBag.name==bag.name).one()
         except NoResultFound:
             sbag = sBag(bag.name, bag.desc)
-        for p in sbag.policy:
-            self.session.delete(p)
         sbag.desc = bag.desc
-        self._store_policy('bag', bag.name, bag.policy)
+        self._store_policy(sbag, bag.policy)
         return sbag
 
-    def _store_policy(self, container_type, container, policy):
+    def _store_policy(self, container, policy):
+        ids = {}
+        for existing_policy in container.policy:
+            ids[existing_policy.constraint] = existing_policy
+
+        policies = []
         for attribute in policy.attributes:
 
             if attribute == 'owner':
                 policy.owner = policy.owner is None and [] or [policy.owner]
             for principal_name in getattr(policy, attribute, []):
                 if principal_name is not None:
-                    spolicy = sPolicy()
-                    spolicy.container_name = container
-                    spolicy.container_type = container_type
+                    try:
+                        id = ids[attribute]
+                        spolicy = id
+                    except KeyError:
+                        spolicy = sPolicy()
+                    policies.append(spolicy)
                     spolicy.constraint = attribute
 
                     if principal_name.startswith('R:'):
@@ -580,7 +614,8 @@ class Store(StorageInterface):
 
                     spolicy.principal_name = pname
                     spolicy.principal_type = ptype
-                    self.session.merge(spolicy)
+                    self.session.add(spolicy)
+        container.policy = policies
 
     def _store_recipe(self, recipe):
         try:
@@ -588,10 +623,8 @@ class Store(StorageInterface):
                     sRecipe.name==recipe.name).one()
         except NoResultFound:
             srecipe = sRecipe(recipe.name, recipe.desc)
-        for p in srecipe.policy:
-            self.session.delete(p)
         srecipe.desc = recipe.desc
-        self._store_policy('recipe', recipe.name, recipe.policy)
+        self._store_policy(srecipe, recipe.policy)
         srecipe.recipe_string = self._store_recipe_string(recipe)
         return srecipe
 
