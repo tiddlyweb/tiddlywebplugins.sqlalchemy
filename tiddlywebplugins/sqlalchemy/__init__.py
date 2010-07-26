@@ -197,7 +197,7 @@ mapper(sRevision, revision_table, properties=dict(
     fields=relation(sField,
         backref='revision',
         cascade='delete',
-        lazy=True)))
+        lazy=False)))
 
 mapper(sBag, bag_table, properties=dict(
     tiddlers=relation(sRevision,
