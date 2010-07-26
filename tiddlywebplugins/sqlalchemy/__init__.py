@@ -598,8 +598,9 @@ class Store(StorageInterface):
             for principal_name in getattr(policy, attribute, []):
                 if principal_name is not None:
                     try:
-                        id = ids[attribute]
-                        spolicy = id
+                        spolicy = ids[attribute]
+                        if spolicy.principal_name != principal_name:
+                            spolicy = sPolicy()
                     except KeyError:
                         spolicy = sPolicy()
                     policies.append(spolicy)

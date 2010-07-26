@@ -81,10 +81,7 @@ def test_make_a_bunch():
 
     bag = Bag('bag0')
     bag = store.get(bag)
-    #try:
     tiddlers = list(store.list_bag_tiddlers(bag))
-    #except AttributeError:
-    #    tiddlers = list(bag.gen_tiddlers())
     assert len(tiddlers) == 1
     assert tiddlers[0].title == 'tiddler0'
     assert tiddlers[0].fields['field0'] == 'field0'
@@ -92,6 +89,22 @@ def test_make_a_bunch():
     assert sorted(bag.policy.read) == ['andextra', 'hi0']
     assert sorted(bag.policy.manage) == ['R:hi0', 'andmanage']
     assert bag.policy.owner == 'owner0'
+
+    bag = Bag('bag0')
+    bag = store.get(bag)
+    bag.policy.read.remove('hi0')
+    store.put(bag)
+    bag = Bag('bag0')
+    bag = store.get(bag)
+    assert bag.policy.read == ['andextra']
+
+    bag = Bag('bag0')
+    bag = store.get(bag)
+    bag.policy.read.append('hi0')
+    store.put(bag)
+    bag = Bag('bag0')
+    bag = store.get(bag)
+    assert sorted(bag.policy.read) == ['andextra', 'hi0']
 
     user = User('user1')
     user = store.get(user)
