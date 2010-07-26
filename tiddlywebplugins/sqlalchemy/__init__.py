@@ -104,6 +104,7 @@ policy_table = Table('policy', metadata,
     Column('constraint', String(12), nullable=False),
     Column('principal_name', Unicode(128), index=True, nullable=False),
     Column('principal_type', CHAR(1), nullable=False),
+    UniqueConstraint('constraint', 'principal_name', 'principal_type'),
     )
 
 role_table = Table('role', metadata,
@@ -586,26 +587,13 @@ class Store(StorageInterface):
         return sbag
 
     def _store_policy(self, container, policy):
-        ids = {}
-        for existing_policy in container.policy:
-            ids[existing_policy.constraint] = existing_policy
-
         policies = []
         for attribute in policy.attributes:
-
             if attribute == 'owner':
                 policy.owner = policy.owner is None and [] or [policy.owner]
-            for principal_name in getattr(policy, attribute, []):
-                if principal_name is not None:
-                    try:
-                        spolicy = ids[attribute]
-                        if spolicy.principal_name != principal_name:
-                            spolicy = sPolicy()
-                    except KeyError:
-                        spolicy = sPolicy()
-                    policies.append(spolicy)
-                    spolicy.constraint = attribute
 
+            for principal_name in getattr(policy, attribute, []):
+                if principal_name != None:
                     if principal_name.startswith('R:'):
                         pname = principal_name[2:]
                         ptype = 'R'
@@ -613,9 +601,20 @@ class Store(StorageInterface):
                         pname = principal_name
                         ptype = 'U'
 
-                    spolicy.principal_name = pname
-                    spolicy.principal_type = ptype
-                    self.session.add(spolicy)
+                    try:
+                        spolicy = self.session.query(sPolicy).filter(and_(
+                                sPolicy.constraint==attribute,
+                                sPolicy.principal_name==pname,
+                                sPolicy.principal_type==ptype)).one()
+                    except NoResultFound:
+                        spolicy = sPolicy()
+
+                        spolicy.constraint = attribute
+                        spolicy.principal_name = pname
+                        spolicy.principal_type = ptype
+                        self.session.add(spolicy)
+                    policies.append(spolicy)
+
         container.policy = policies
 
     def _store_recipe(self, recipe):
