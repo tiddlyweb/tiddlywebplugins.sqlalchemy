@@ -210,7 +210,7 @@ mapper(sBag, bag_table, properties=dict(
         secondaryjoin=(bag_policy_table.c.policy_id == policy_table.c.id),
         cascade='all',
         passive_updates=False,
-        lazy=False)))
+        lazy=True)))
 
 mapper(sUser, user_table, properties=dict(
     roles=relation(sRole,
@@ -225,7 +225,7 @@ mapper(sRecipe, recipe_table, properties=dict(
         secondaryjoin=(recipe_policy_table.c.policy_id == policy_table.c.id),
         cascade='all',
         passive_updates=False,
-        lazy=False)))
+        lazy=True)))
 
 mapper(sRole, role_table)
 
@@ -262,7 +262,7 @@ class Store(StorageInterface):
 
     def list_recipes(self):
         try:
-            return (self._load_recipe(Recipe(srecipe.name), srecipe)
+            return (Recipe(srecipe.name)
                     for srecipe in self.session.query(sRecipe).all())
         except:
             self.session.rollback()
@@ -270,7 +270,7 @@ class Store(StorageInterface):
 
     def list_bags(self):
         try:
-            return (self._load_bag(Bag(sbag.name), sbag)
+            return (Bag(sbag.name)
                     for sbag in self.session.query(sBag).all())
         except:
             self.session.rollback()
@@ -278,7 +278,7 @@ class Store(StorageInterface):
 
     def list_users(self):
         try:
-            return (self._load_user(User(suser.usersign), suser)
+            return (User(suser.usersign)
                     for suser in self.session.query(sUser).all())
         except:
             self.session.rollback()
