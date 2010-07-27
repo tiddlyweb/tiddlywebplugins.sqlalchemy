@@ -528,8 +528,7 @@ class Store(StorageInterface):
             tiddler.revision = revision.number
             tiddler.type = revision.type
 
-            if (tiddler.type and tiddler.type != 'None' and not
-                    tiddler.type.startswith('text/')):
+            if binary_tiddler(tiddler):
                 tiddler.text = b64decode(revision.text.lstrip().rstrip())
             else:
                 tiddler.text = revision.text
