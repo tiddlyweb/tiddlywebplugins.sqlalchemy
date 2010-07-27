@@ -210,7 +210,7 @@ mapper(sBag, bag_table, properties=dict(
         secondaryjoin=(bag_policy_table.c.policy_id == policy_table.c.id),
         cascade='all',
         passive_updates=False,
-        lazy=True)))
+        lazy=False)))
 
 mapper(sUser, user_table, properties=dict(
     roles=relation(sRole,
@@ -225,7 +225,7 @@ mapper(sRecipe, recipe_table, properties=dict(
         secondaryjoin=(recipe_policy_table.c.policy_id == policy_table.c.id),
         cascade='all',
         passive_updates=False,
-        lazy=True)))
+        lazy=False)))
 
 mapper(sRole, role_table)
 
