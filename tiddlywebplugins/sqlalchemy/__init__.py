@@ -595,10 +595,10 @@ class Store(StorageInterface):
                 if principal_name != None:
                     if principal_name.startswith('R:'):
                         pname = principal_name[2:]
-                        ptype = 'R'
+                        ptype = u'R'
                     else:
                         pname = principal_name
-                        ptype = 'U'
+                        ptype = u'U'
 
                     try:
                         spolicy = self.session.query(sPolicy).filter(and_(
