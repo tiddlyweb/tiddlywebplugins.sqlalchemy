@@ -13,7 +13,7 @@ from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.schema import (Table, Column, PrimaryKeyConstraint,
         UniqueConstraint, ForeignKey, ForeignKeyConstraint, Index, MetaData)
 from sqlalchemy.sql import func
-from sqlalchemy.sql.expression import and_, text as text_
+from sqlalchemy.sql.expression import and_, text as text_, alias
 from sqlalchemy.types import Unicode, Integer, String, UnicodeText, CHAR
 from tiddlyweb.model.bag import Bag
 from tiddlyweb.model.policy import Policy
@@ -286,8 +286,14 @@ class Store(StorageInterface):
 
     def list_bag_tiddlers(self, bag):
         try:
-            query = (self.session.query(sRevision,func.max(sRevision.number))
-                    .filter(sRevision.bag_name==bag.name).group_by(sRevision.tiddler_title))
+            max_rev_alias = alias(revision_table)
+            max_statement = func.max(max_rev_alias.c.number)
+            max_statement = max_statement.select().where(and_(
+                max_rev_alias.c.tiddler_title==sRevision.tiddler_title,
+                max_rev_alias.c.bag_name==bag.name))
+            query = (self.session.query(sRevision)
+                    .filter(sRevision.bag_name==bag.name)
+                    .filter(sRevision.number==max_statement))
             try:
                 sbag = self.session.query(sBag).filter(sBag.name
                         == bag.name).one()
@@ -296,17 +302,12 @@ class Store(StorageInterface):
 
             tiddlers = query.all()
 
-            try:
-                store = self.environ['tiddlyweb.store']
-            except KeyError:
-                store = bag.store
-
             def _bags_tiddler(stiddler):
                 tiddler = Tiddler(stiddler.tiddler_title, bag.name)
                 tiddler = self.tiddler_get(tiddler)
                 return tiddler
 
-            for stiddler, _ in tiddlers:
+            for stiddler in tiddlers:
                 if stiddler:
                     yield _bags_tiddler(stiddler)
         except:
