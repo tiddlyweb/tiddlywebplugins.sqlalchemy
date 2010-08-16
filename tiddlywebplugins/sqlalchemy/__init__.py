@@ -26,6 +26,8 @@ from tiddlyweb.store import (NoBagError, NoRecipeError, NoTiddlerError,
 from tiddlyweb.stores import StorageInterface
 from tiddlyweb.util import binary_tiddler
 
+__version__ = '0.9.8'
+
 #logging.basicConfig()
 #logging.getLogger('sqlalchemy.engine').setLevel(logging.INFO)
 
@@ -286,14 +288,9 @@ class Store(StorageInterface):
 
     def list_bag_tiddlers(self, bag):
         try:
-            max_rev_alias = alias(revision_table)
-            max_statement = func.max(max_rev_alias.c.number)
-            max_statement = max_statement.select().where(and_(
-                max_rev_alias.c.tiddler_title==sRevision.tiddler_title,
-                max_rev_alias.c.bag_name==bag.name))
             query = (self.session.query(sRevision)
                     .filter(sRevision.bag_name==bag.name)
-                    .filter(sRevision.number==max_statement))
+                    .group_by(sRevision.tiddler_title))
             try:
                 sbag = self.session.query(sBag).filter(sBag.name
                         == bag.name).one()
@@ -304,7 +301,6 @@ class Store(StorageInterface):
 
             def _bags_tiddler(stiddler):
                 tiddler = Tiddler(stiddler.tiddler_title, bag.name)
-                tiddler = self.tiddler_get(tiddler)
                 return tiddler
 
             for stiddler in tiddlers:
