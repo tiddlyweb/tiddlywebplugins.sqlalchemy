@@ -26,10 +26,11 @@ from tiddlyweb.store import (NoBagError, NoRecipeError, NoTiddlerError,
 from tiddlyweb.stores import StorageInterface
 from tiddlyweb.util import binary_tiddler
 
-__version__ = '0.9.8'
+__version__ = '0.9.9'
 
 #logging.basicConfig()
 #logging.getLogger('sqlalchemy.engine').setLevel(logging.INFO)
+#logging.getLogger('sqlalchemy.pool').setLevel(logging.DEBUG)
 
 metadata = MetaData()
 Session = scoped_session(sessionmaker())
@@ -264,24 +265,27 @@ class Store(StorageInterface):
 
     def list_recipes(self):
         try:
-            return (Recipe(srecipe.name)
-                    for srecipe in self.session.query(sRecipe).all())
+            for srecipe in self.session.query(sRecipe).all():
+                yield Recipe(srecipe.name)
+            self.session.close()
         except:
             self.session.rollback()
             raise
 
     def list_bags(self):
         try:
-            return (Bag(sbag.name)
-                    for sbag in self.session.query(sBag).all())
+            for sbag in self.session.query(sBag).all():
+                yield Bag(sbag.name)
+            self.session.close()
         except:
             self.session.rollback()
             raise
 
     def list_users(self):
         try:
-            return (User(suser.usersign)
-                    for suser in self.session.query(sUser).all())
+            for suser in self.session.query(sUser).all():
+                yield User(suser.usersign)
+            self.session.close()
         except:
             self.session.rollback()
             raise
@@ -345,6 +349,7 @@ class Store(StorageInterface):
                 srecipe = self.session.query(sRecipe).filter(sRecipe.name
                         == recipe.name).one()
                 recipe = self._load_recipe(recipe, srecipe)
+                self.session.close()
                 return recipe
             except NoResultFound, exc:
                 raise NoRecipeError('no results for recipe %s, %s' %
@@ -384,6 +389,7 @@ class Store(StorageInterface):
                 if VERSION.startswith('1.0'):
                     if not (hasattr(bag, 'skinny') and bag.skinny):
                         bag.add_tiddlers(self.list_bag_tiddlers(bag))
+                self.session.close()
                 return bag
             except NoResultFound, exc:
                 raise NoBagError('Bag %s not found: %s' % (bag.name, exc))
@@ -433,6 +439,7 @@ class Store(StorageInterface):
                 stiddler = query.one()
                 base_tiddler = base_tiddler.one()
                 tiddler = self._load_tiddler(tiddler, stiddler, base_tiddler)
+                self.session.close()
                 return tiddler
             except NoResultFound, exc:
                 raise NoTiddlerError('Tiddler %s not found: %s' %
@@ -476,6 +483,7 @@ class Store(StorageInterface):
                 suser = self.session.query(sUser).filter(sUser.usersign
                         == user.usersign).one()
                 user = self._load_user(user, suser)
+                self.session.close()
                 return user
             except NoResultFound, exc:
                 raise NoUserError('user %s not found, %s' %
