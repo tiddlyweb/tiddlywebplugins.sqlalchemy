@@ -2,7 +2,7 @@ AUTHOR = 'Chris Dent'
 AUTHOR_EMAIL = 'cdent@peermore.com'
 NAME = 'tiddlywebplugins.sqlalchemy'
 DESCRIPTION = 'sqlalchemy store for tiddlyweb'
-VERSION = '0.9.9' # make sure you update in __init__ too
+VERSION = '0.9.10' # make sure you update in __init__ too
 
 
 import os
@@ -23,7 +23,7 @@ setup(
     packages = find_packages(exclude=['test']),
     platforms = 'Posix; MacOS X; Windows',
     install_requires = ['setuptools',
-        'tiddlyweb>=1.1.dev6',
+        'tiddlyweb>=1.1.dev7',
         'sqlalchemy',
         ],
     zip_safe = False
