@@ -416,7 +416,6 @@ class Store(StorageInterface):
                 if rows == 0:
                     raise NoResultFound
                 self.session.commit()
-                self.tiddler_written(tiddler)
             except NoResultFound, exc:
                 self.session.rollback()
                 raise NoTiddlerError('no tiddler %s to delete, %s' %
@@ -456,8 +455,6 @@ class Store(StorageInterface):
             stiddler = self._store_tiddler(tiddler)
             self.session.add(stiddler)
             tiddler.revision = stiddler.number
-            self.session.commit()
-            self.tiddler_written(tiddler)
             self.session.commit()
         except:
             self.session.rollback()
