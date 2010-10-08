@@ -26,7 +26,7 @@ from tiddlyweb.store import (NoBagError, NoRecipeError, NoTiddlerError,
 from tiddlyweb.stores import StorageInterface
 from tiddlyweb.util import binary_tiddler
 
-__version__ = '0.9.14'
+__version__ = '0.9.15'
 
 #logging.basicConfig()
 #logging.getLogger('sqlalchemy.engine').setLevel(logging.INFO)
@@ -213,7 +213,7 @@ mapper(sBag, bag_table, properties=dict(
         secondaryjoin=(bag_policy_table.c.policy_id == policy_table.c.id),
         cascade='all',
         passive_updates=False,
-        lazy=False)))
+        lazy=True)))
 
 mapper(sUser, user_table, properties=dict(
     roles=relation(sRole,
@@ -228,7 +228,7 @@ mapper(sRecipe, recipe_table, properties=dict(
         secondaryjoin=(recipe_policy_table.c.policy_id == policy_table.c.id),
         cascade='all',
         passive_updates=False,
-        lazy=False)))
+        lazy=True)))
 
 mapper(sRole, role_table)
 
