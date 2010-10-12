@@ -45,6 +45,15 @@ field_table = Table('field', metadata,
                          onupdate='CASCADE', ondelete='CASCADE'),
     )
 
+tag_table = Table('tag', metadata,
+    Column('revision_number', Integer, index=True, nullable=False),
+    Column('tag', Unicode(1024), index=True, nullable=False),
+    PrimaryKeyConstraint('revision_number', 'tag'),
+    ForeignKeyConstraint(['revision_number'],
+                         ['revision.number'],
+                         onupdate='CASCADE', ondelete='CASCADE'),
+    )
+
 revision_table = Table('revision', metadata,
     Column('bag_name', Unicode(128), index=True, nullable=False),
     Column('tiddler_title', Unicode(128), index=True, nullable=False),
@@ -53,7 +62,6 @@ revision_table = Table('revision', metadata,
     Column('modifier', Unicode(128), index=True),
     Column('modified', String(14), index=True),
     Column('type', String(128), index=True),
-    Column('tags', Unicode(1024), index=True),
     Column('text', UnicodeText(16777215), nullable=False, default=u''),
     UniqueConstraint('bag_name', 'tiddler_title', 'number'),
     ForeignKeyConstraint(['bag_name', 'tiddler_title'],
@@ -137,6 +145,16 @@ class sField(object):
         return '<sField(%s:%s)>' % (self.name, self.value)
 
 
+class sTag(object):
+
+    def __init__(self, tag):
+        object.__init__(self)
+        self.tag = tag
+
+    def __repr__(self):
+        return '<sTag(%s)>' % (self.tag)
+
+
 class sRevision(object):
 
     def __init__(self, title, bag_name, rev=0):
@@ -195,19 +213,19 @@ class sUser(object):
 
 
 mapper(sField, field_table)
+mapper(sTag, tag_table)
 
 mapper(sRevision, revision_table, properties=dict(
     fields=relation(sField,
         backref='revision',
         cascade='delete',
+        lazy=False),
+    tags=relation(sTag,
+        backref='revision',
+        cascade='delete',
         lazy=False)))
 
 mapper(sBag, bag_table, properties=dict(
-    tiddlers=relation(sRevision,
-        lazy = True,
-        cascade='delete',
-        primaryjoin=(revision_table.c.bag_name==bag_table.c.name)
-        ),
     policy=relation(sPolicy, secondary=bag_policy_table,
         primaryjoin=(bag_policy_table.c.bag_id == bag_table.c.id),
         secondaryjoin=(bag_policy_table.c.policy_id == policy_table.c.id),
@@ -534,7 +552,7 @@ class Store(StorageInterface):
                 tiddler.text = b64decode(revision.text.lstrip().rstrip())
             else:
                 tiddler.text = revision.text
-            tiddler.tags = self._load_tags(revision.tags)
+            tiddler.tags = [tag.tag for tag in revision.tags]
 
             for sfield in revision.fields:
                 tiddler.fields[sfield.name] = sfield.value
@@ -566,9 +584,6 @@ class Store(StorageInterface):
                 bag, filter = line.split('?', 1)
                 recipe.append((bag, filter))
         return recipe
-
-    def _load_tags(self, tags_string):
-        return string_to_tags_list(tags_string)
 
     def _load_user(self, user, suser):
         user.usersign = suser.usersign
@@ -643,9 +658,6 @@ class Store(StorageInterface):
             srole.name = role
             self.session.merge(srole)
 
-    def _store_tags(self, tags):
-        return self.serializer.serialization.tags_as(tags)
-
     def _store_tiddler(self, tiddler):
         if tiddler.revision:
             srevision = sRevision(tiddler.title, tiddler.bag, tiddler.revision)
@@ -659,7 +671,10 @@ class Store(StorageInterface):
         srevision.modified = tiddler.modified
         srevision.modifier = tiddler.modifier
         srevision.text = tiddler.text
-        srevision.tags = self._store_tags(tiddler.tags)
+        for tag in tiddler.tags:
+            stag = sTag(tag)
+            self.session.add(stag)
+            srevision.tags.append(stag)
         self.session.add(srevision)
         self.session.flush()
 
