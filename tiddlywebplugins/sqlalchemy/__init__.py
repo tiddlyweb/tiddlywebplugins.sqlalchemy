@@ -310,6 +310,7 @@ class Store(StorageInterface):
             for stiddler in tiddlers:
                 if stiddler:
                     yield _bags_tiddler(stiddler)
+            self.session.close()
         except:
             self.session.rollback()
             raise
@@ -328,6 +329,8 @@ class Store(StorageInterface):
         except:
             self.session.rollback()
             raise
+        finally:
+            self.session.close()
 
     def recipe_delete(self, recipe):
         try:
@@ -417,7 +420,6 @@ class Store(StorageInterface):
                     raise NoResultFound
                 self.session.commit()
             except NoResultFound, exc:
-                self.session.rollback()
                 raise NoTiddlerError('no tiddler %s to delete, %s' %
                         (tiddler.title, exc))
         except:
