@@ -26,7 +26,7 @@ from tiddlyweb.store import (NoBagError, NoRecipeError, NoTiddlerError,
 from tiddlyweb.stores import StorageInterface
 from tiddlyweb.util import binary_tiddler
 
-__version__ = '0.9.15'
+__version__ = '0.9.17'
 
 #logging.basicConfig()
 #logging.getLogger('sqlalchemy.engine').setLevel(logging.INFO)
@@ -283,8 +283,8 @@ class Store(StorageInterface):
 
     def list_recipes(self):
         try:
-            for srecipe in self.session.query(sRecipe).all():
-                yield Recipe(srecipe.name)
+            for srecipe in self.session.query(sRecipe.name).all():
+                yield Recipe(srecipe[0])
             self.session.close()
         except:
             self.session.rollback()
@@ -292,8 +292,8 @@ class Store(StorageInterface):
 
     def list_bags(self):
         try:
-            for sbag in self.session.query(sBag).all():
-                yield Bag(sbag.name)
+            for sbag in self.session.query(sBag.name).all():
+                yield Bag(sbag[0])
             self.session.close()
         except:
             self.session.rollback()
@@ -301,8 +301,8 @@ class Store(StorageInterface):
 
     def list_users(self):
         try:
-            for suser in self.session.query(sUser).all():
-                yield User(suser.usersign)
+            for suser in self.session.query(sUser.usersign).all():
+                yield User(suser[0])
             self.session.close()
         except:
             self.session.rollback()
@@ -314,7 +314,7 @@ class Store(StorageInterface):
                     .filter(sRevision.bag_name==bag.name)
                     .group_by(sRevision.tiddler_title))
             try:
-                sbag = self.session.query(sBag).filter(sBag.name
+                sbag = self.session.query(sBag.name).filter(sBag.name
                         == bag.name).one()
             except NoResultFound, exc:
                 raise NoBagError('no results for bag %s, %s' % (bag.name, exc))
@@ -328,6 +328,7 @@ class Store(StorageInterface):
             for stiddler in tiddlers:
                 if stiddler:
                     yield _bags_tiddler(stiddler)
+            self.session.close()
         except:
             self.session.rollback()
             raise
@@ -346,6 +347,8 @@ class Store(StorageInterface):
         except:
             self.session.rollback()
             raise
+        finally:
+            self.session.close()
 
     def recipe_delete(self, recipe):
         try:
@@ -435,7 +438,6 @@ class Store(StorageInterface):
                     raise NoResultFound
                 self.session.commit()
             except NoResultFound, exc:
-                self.session.rollback()
                 raise NoTiddlerError('no tiddler %s to delete, %s' %
                         (tiddler.title, exc))
         except:
@@ -443,16 +445,29 @@ class Store(StorageInterface):
             raise
 
     def tiddler_get(self, tiddler):
+        max_rev_alias = alias(revision_table)
+        max_statement = func.max(max_rev_alias.c.number)
+        max_statement = max_statement.select().where(and_(
+            max_rev_alias.c.tiddler_title==tiddler.title,
+            max_rev_alias.c.bag_name==tiddler.bag))
+
+        min_rev_alias = alias(revision_table)
+        min_statement = func.min(min_rev_alias.c.number)
+        min_statement = min_statement.select().where(and_(
+            min_rev_alias.c.tiddler_title==tiddler.title,
+            min_rev_alias.c.bag_name==tiddler.bag))
         try:
             try:
-                query = (self.session.query(sRevision).
-                        filter(sRevision.tiddler_title == tiddler.title).
-                        filter(sRevision.bag_name == tiddler.bag))
-                base_tiddler = query.order_by(sRevision.number.asc()).limit(1)
+                query = (self.session.query(sRevision)
+                        .filter(sRevision.tiddler_title == tiddler.title)
+                        .filter(sRevision.bag_name == tiddler.bag))
+                base_tiddler = query.filter(
+                        sRevision.number==min_statement)
                 if tiddler.revision:
                     query = query.filter(sRevision.number == tiddler.revision)
                 else:
-                    query = query.order_by(sRevision.number.desc()).limit(1)
+                    query = query.filter(
+                            sRevision.number==max_statement)
                 stiddler = query.one()
                 base_tiddler = base_tiddler.one()
                 tiddler = self._load_tiddler(tiddler, stiddler, base_tiddler)
@@ -464,6 +479,7 @@ class Store(StorageInterface):
         except:
             self.session.rollback()
             raise
+
 
     def tiddler_put(self, tiddler):
         tiddler.revision = None
