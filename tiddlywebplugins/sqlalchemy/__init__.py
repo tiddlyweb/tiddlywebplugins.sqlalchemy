@@ -38,7 +38,7 @@ Session = scoped_session(sessionmaker())
 field_table = Table('field', metadata,
     Column('revision_number', Integer, nullable=False),
     Column('name', Unicode(64), nullable=False),
-    Column('value', Unicode(256), nullable=False),
+    Column('value', Unicode(1024), nullable=False),
     PrimaryKeyConstraint('revision_number', 'name', 'value'),
     ForeignKeyConstraint(['revision_number'],
                          ['revision.number'],
@@ -54,6 +54,16 @@ tag_table = Table('tag', metadata,
                          onupdate='CASCADE', ondelete='CASCADE'),
     )
 
+text_table = Table('text', metadata,
+    Column('revision_number', Integer, nullable=False),
+    Column('text', UnicodeText(16777215), nullable=False, default=u''),
+    PrimaryKeyConstraint('revision_number'),
+    ForeignKeyConstraint(['revision_number'],
+                         ['revision.number'],
+                         onupdate='CASCADE', ondelete='CASCADE'),
+    )
+
+
 revision_table = Table('revision', metadata,
     Column('bag_name', Unicode(128), index=True, nullable=False),
     Column('tiddler_title', Unicode(128), index=True, nullable=False),
@@ -62,7 +72,6 @@ revision_table = Table('revision', metadata,
     Column('modifier', Unicode(128), index=True),
     Column('modified', String(14), index=True),
     Column('type', String(128), index=True),
-    Column('text', UnicodeText(16777215), nullable=False, default=u''),
     ForeignKeyConstraint(['bag_name', 'tiddler_title'],
                          ['tiddler.bag_name', 'tiddler.title'],
                          name='revision_name',
@@ -167,7 +176,17 @@ class sTag(object):
         self.tag = tag
 
     def __repr__(self):
-        return '<sTag(%s)>' % (self.tag)
+        return '<sTag(%s:%s)>' % (self.revision_number, self.tag)
+
+
+class sText(object):
+
+    def __init__(self, text):
+        object.__init__(self)
+        self.text = text
+
+    def __repr__(self):
+        return '<sText(%s:<text>)>' % (self.revision_number)
 
 
 class sRevision(object):
@@ -244,6 +263,7 @@ class sUser(object):
 
 mapper(sField, field_table)
 mapper(sTag, tag_table)
+mapper(sText, text_table)
 
 mapper(sRevision, revision_table, properties=dict(
     fields=relation(sField,
@@ -253,6 +273,11 @@ mapper(sRevision, revision_table, properties=dict(
     tags=relation(sTag,
         backref='revision',
         cascade='delete',
+        lazy=False),
+    text=relation(sText,
+        backref='revision',
+        cascade='delete',
+        uselist=False,
         lazy=False)))
 
 mapper(sTiddler, tiddler_table, properties=dict(
@@ -591,9 +616,9 @@ class Store(StorageInterface):
             tiddler.type = revision.type
 
             if binary_tiddler(tiddler):
-                tiddler.text = b64decode(revision.text.lstrip().rstrip())
+                tiddler.text = b64decode(revision.text.text.lstrip().rstrip())
             else:
-                tiddler.text = revision.text
+                tiddler.text = revision.text.text
             tiddler.tags = [tag.tag for tag in revision.tags]
 
             for sfield in revision.fields:
@@ -706,10 +731,15 @@ class Store(StorageInterface):
         if binary_tiddler(tiddler):
             tiddler.text = unicode(b64encode(tiddler.text))
 
+        print 'TT', tiddler.text
         srevision.type = tiddler.type
         srevision.modified = tiddler.modified
         srevision.modifier = tiddler.modifier
-        srevision.text = tiddler.text
+        text = sText(tiddler.text)
+        print text.text
+        self.session.add(text)
+        srevision.text = text
+        print srevision.text.text
         for tag in tiddler.tags:
             stag = sTag(tag)
             self.session.add(stag)
