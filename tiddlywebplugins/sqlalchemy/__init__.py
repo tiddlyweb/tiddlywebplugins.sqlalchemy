@@ -731,15 +731,12 @@ class Store(StorageInterface):
         if binary_tiddler(tiddler):
             tiddler.text = unicode(b64encode(tiddler.text))
 
-        print 'TT', tiddler.text
         srevision.type = tiddler.type
         srevision.modified = tiddler.modified
         srevision.modifier = tiddler.modifier
         text = sText(tiddler.text)
-        print text.text
         self.session.add(text)
         srevision.text = text
-        print srevision.text.text
         for tag in tiddler.tags:
             stag = sTag(tag)
             self.session.add(stag)
