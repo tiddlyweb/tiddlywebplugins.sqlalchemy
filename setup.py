@@ -1,8 +1,8 @@
 AUTHOR = 'Chris Dent'
 AUTHOR_EMAIL = 'cdent@peermore.com'
-NAME = 'tiddlywebplugins.sqlalchemy'
+NAME = 'tiddlywebplugins.sqlalchemy2'
 DESCRIPTION = 'sqlalchemy store for tiddlyweb'
-VERSION = '0.9.17' # make sure you update in __init__ too
+VERSION = '2.0.0' # make sure you update in __init__ too
 
 
 import os
@@ -23,7 +23,7 @@ setup(
     packages = find_packages(exclude=['test']),
     platforms = 'Posix; MacOS X; Windows',
     install_requires = ['setuptools',
-        'tiddlyweb>=1.1.dev7',
+        'tiddlyweb>=1.2.0',
         'sqlalchemy',
         ],
     zip_safe = False

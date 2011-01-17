@@ -1,5 +1,5 @@
 """
-Yet another attempt to get a good sql store.
+The base for using sqlalchemy as a store with TiddlyWeb.
 """
 import logging
 
@@ -26,7 +26,7 @@ from tiddlyweb.store import (NoBagError, NoRecipeError, NoTiddlerError,
 from tiddlyweb.stores import StorageInterface
 from tiddlyweb.util import binary_tiddler
 
-__version__ = '0.9.17'
+__version__ = '2.0.0'
 
 #logging.basicConfig()
 #logging.getLogger('sqlalchemy.engine').setLevel(logging.INFO)
@@ -104,7 +104,6 @@ bag_table = Table('bag', metadata,
 bag_policy_table = Table('bag_policy', metadata,
     Column('bag_id', Integer, ForeignKey('bag.id'), nullable=False),
     Column('policy_id', Integer, ForeignKey('policy.id'), nullable=False),
-    #UniqueConstraint('bag_id', 'policy_id'),
     ForeignKeyConstraint(['bag_id'],
         ['bag.id'],
         onupdate='CASCADE', ondelete='CASCADE'),
@@ -125,7 +124,6 @@ recipe_table = Table('recipe', metadata,
 recipe_policy_table = Table('recipe_policy', metadata,
     Column('recipe_id', Integer, ForeignKey('recipe.id'), nullable=False),
     Column('policy_id', Integer, ForeignKey('policy.id'), nullable=False),
-    #UniqueConstraint('recipe_id', 'policy_id'),
     ForeignKeyConstraint(['recipe_id'],
         ['recipe.id'],
         onupdate='CASCADE', ondelete='CASCADE'),
