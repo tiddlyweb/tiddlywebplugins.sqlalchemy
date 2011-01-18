@@ -267,16 +267,16 @@ mapper(sRevision, revision_table, properties=dict(
     fields=relation(sField,
         backref='revision',
         cascade='delete',
-        lazy=False),
+        lazy=True),
     tags=relation(sTag,
         backref='revision',
         cascade='delete',
-        lazy=False),
+        lazy=True),
     text=relation(sText,
         backref='revision',
         cascade='delete',
         uselist=False,
-        lazy=False)))
+        lazy=True)))
 
 mapper(sTiddler, tiddler_table, properties=dict(
     revisions=relation(sRevision,
@@ -297,7 +297,7 @@ mapper(sBag, bag_table, properties=dict(
         secondaryjoin=(bag_policy_table.c.policy_id == policy_table.c.id),
         cascade='all',
         passive_updates=False,
-        lazy=True)))
+        lazy=False)))
 
 mapper(sUser, user_table, properties=dict(
     roles=relation(sRole,
@@ -312,7 +312,7 @@ mapper(sRecipe, recipe_table, properties=dict(
         secondaryjoin=(recipe_policy_table.c.policy_id == policy_table.c.id),
         cascade='all',
         passive_updates=False,
-        lazy=True)))
+        lazy=False)))
 
 mapper(sRole, role_table)
 
