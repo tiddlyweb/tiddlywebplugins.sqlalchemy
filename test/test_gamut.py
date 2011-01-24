@@ -242,3 +242,91 @@ def test_list_tiddlers_no_bag():
         py.test.raises(NoBagError, 'store.list_bag_tiddlers(bag).next()')
     except AttributeError:
         assert True
+
+def test_2bag_policy():
+    bag = Bag('pone')
+    bag.policy.read = ['cdent']
+    bag.policy.write = ['cdent']
+    store.put(bag)
+
+    bag = Bag('ptwo')
+    bag.policy.read = ['cdent', 'fnd']
+    bag.policy.write = ['cdent']
+    store.put(bag)
+
+    pone = store.get(Bag('pone'))
+    ptwo = store.get(Bag('ptwo'))
+
+    assert pone.policy.read == ['cdent']
+    assert pone.policy.write == ['cdent']
+
+    assert sorted(ptwo.policy.read) == ['cdent', 'fnd']
+    assert ptwo.policy.write == ['cdent']
+
+    store.delete(pone)
+
+    ptwo = store.get(Bag('ptwo'))
+
+    assert sorted(ptwo.policy.read) == ['cdent', 'fnd']
+    assert ptwo.policy.write == ['cdent']
+
+    bag = Bag('pone')
+    bag.policy.read = ['cdent']
+    bag.policy.write = ['cdent']
+    store.put(bag)
+
+    pone = store.get(Bag('pone'))
+    assert pone.policy.read == ['cdent']
+    assert pone.policy.write == ['cdent']
+
+    pone.policy.read.append('fnd')
+
+    store.put(pone)
+
+    pone = store.get(Bag('pone'))
+
+    assert sorted(pone.policy.read) == ['cdent', 'fnd']
+
+def test_2recipe_policy():
+    recipe = Recipe('pone')
+    recipe.policy.read = ['cdent']
+    recipe.policy.write = ['cdent']
+    store.put(recipe)
+
+    recipe = Recipe('ptwo')
+    recipe.policy.read = ['cdent', 'fnd']
+    recipe.policy.write = ['cdent']
+    store.put(recipe)
+
+    pone = store.get(Recipe('pone'))
+    ptwo = store.get(Recipe('ptwo'))
+
+    assert pone.policy.read == ['cdent']
+    assert pone.policy.write == ['cdent']
+
+    assert sorted(ptwo.policy.read) == ['cdent', 'fnd']
+    assert ptwo.policy.write == ['cdent']
+
+    store.delete(pone)
+
+    ptwo = store.get(Recipe('ptwo'))
+
+    assert sorted(ptwo.policy.read) == ['cdent', 'fnd']
+    assert ptwo.policy.write == ['cdent']
+
+    recipe = Recipe('pone')
+    recipe.policy.read = ['cdent']
+    recipe.policy.write = ['cdent']
+    store.put(recipe)
+
+    pone = store.get(Recipe('pone'))
+    assert pone.policy.read == ['cdent']
+    assert pone.policy.write == ['cdent']
+
+    pone.policy.read.append('fnd')
+
+    store.put(pone)
+
+    pone = store.get(Recipe('pone'))
+
+    assert sorted(pone.policy.read) == ['cdent', 'fnd']
