@@ -74,6 +74,7 @@ revision_table = Table('revision', metadata,
     Column('type', String(128), index=True),
     ForeignKeyConstraint(['bag_name', 'tiddler_title'],
                          ['tiddler.bag_name', 'tiddler.title'],
+                         ondelete='CASCADE',
                          name='revision_name',
                          use_alter=True),
     )
@@ -263,6 +264,35 @@ mapper(sField, field_table)
 mapper(sTag, tag_table)
 mapper(sText, text_table)
 
+mapper(sBag, bag_table, properties=dict(
+    policy=relation(sPolicy, secondary=bag_policy_table,
+        primaryjoin=(bag_policy_table.c.bag_id == bag_table.c.id),
+        secondaryjoin=(bag_policy_table.c.policy_id == policy_table.c.id),
+        passive_updates=False,
+        lazy=False),
+    tiddlers=relation(sTiddler,
+        primaryjoin=(bag_table.c.name == tiddler_table.c.bag_name),
+        backref='bag',
+        cascade='delete',
+        lazy=True)
+    ))
+
+mapper(sTiddler, tiddler_table, properties=dict(
+    revisions=relation(sRevision,
+        primaryjoin=(and_(tiddler_table.c.bag_name == revision_table.c.bag_name,
+            tiddler_table.c.title == revision_table.c.tiddler_title)),
+        backref='tiddler',
+        cascade='delete',
+        lazy=True),
+    current=relation(sRevision,
+        primaryjoin=(tiddler_table.c.revision_number == revision_table.c.number),
+        passive_deletes=True,
+        lazy=True),
+    first=relation(sRevision,
+        primaryjoin=(tiddler_table.c.first_revision == revision_table.c.number),
+        passive_deletes=True,
+        lazy=True)))
+
 mapper(sRevision, revision_table, properties=dict(
     fields=relation(sField,
         backref='revision',
@@ -277,26 +307,6 @@ mapper(sRevision, revision_table, properties=dict(
         cascade='delete',
         uselist=False,
         lazy=True)))
-
-mapper(sTiddler, tiddler_table, properties=dict(
-    revisions=relation(sRevision,
-        primaryjoin=(and_(tiddler_table.c.bag_name == revision_table.c.bag_name,
-            tiddler_table.c.title == revision_table.c.tiddler_title)),
-        cascade='delete',
-        lazy=True),
-    current=relation(sRevision,
-        primaryjoin=(tiddler_table.c.revision_number == revision_table.c.number),
-        lazy=True),
-    first=relation(sRevision,
-        primaryjoin=(tiddler_table.c.first_revision == revision_table.c.number),
-        lazy=True)))
-
-mapper(sBag, bag_table, properties=dict(
-    policy=relation(sPolicy, secondary=bag_policy_table,
-        primaryjoin=(bag_policy_table.c.bag_id == bag_table.c.id),
-        secondaryjoin=(bag_policy_table.c.policy_id == policy_table.c.id),
-        passive_updates=False,
-        lazy=False)))
 
 mapper(sUser, user_table, properties=dict(
     roles=relation(sRole,
@@ -493,7 +503,7 @@ class Store(StorageInterface):
                 stiddlers = (self.session.query(sTiddler).
                         filter(sTiddler.title == tiddler.title).
                         filter(sTiddler.bag_name == tiddler.bag))
-                rows = stiddlers.delete(synchronize_session='fetch')
+                rows = self.session.delete(stiddlers.one())
                 if rows == 0:
                     raise NoResultFound
                 self.session.commit()

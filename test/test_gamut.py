@@ -330,3 +330,38 @@ def test_2recipe_policy():
     pone = store.get(Recipe('pone'))
 
     assert sorted(pone.policy.read) == ['cdent', 'fnd']
+
+def test_revisions_deletions():
+    tiddler = Tiddler('tone', 'pone')
+    tiddler.text = 'revision1'
+    tiddler.tags = ['1','2']
+    store.put(tiddler)
+    tiddler.text = 'revision2'
+    tiddler.tags = ['3','4']
+    store.put(tiddler)
+
+    revisions = store.list_tiddler_revisions(tiddler)
+
+    assert len(revisions) == 2
+
+    store.delete(tiddler)
+
+    py.test.raises(NoTiddlerError, 'store.list_tiddler_revisions(tiddler)')
+
+
+def test_bag_deletes_tiddlers():
+    tiddler = Tiddler('tone', 'pone')
+    store.put(tiddler)
+    tiddler = Tiddler('uone', 'pone')
+    store.put(tiddler)
+
+    bag = Bag('pone')
+
+    tiddlers = list(store.list_bag_tiddlers(bag))
+    assert len(tiddlers) == 2
+
+    store.delete(bag)
+
+    bag = Bag('pone')
+    py.test.raises(NoBagError, 'list(store.list_bag_tiddlers(bag))')
+    py.test.raises(NoTiddlerError, 'store.list_tiddler_revisions(tiddler)')
