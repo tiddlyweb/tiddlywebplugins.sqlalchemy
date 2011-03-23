@@ -286,11 +286,11 @@ mapper(sTiddler, tiddler_table, properties=dict(
         lazy=True),
     current=relation(sRevision,
         primaryjoin=(tiddler_table.c.revision_number == revision_table.c.number),
-        passive_deletes=True,
+        viewonly=True,
         lazy=True),
     first=relation(sRevision,
         primaryjoin=(tiddler_table.c.first_revision == revision_table.c.number),
-        passive_deletes=True,
+        viewonly=True,
         lazy=True)))
 
 mapper(sRevision, revision_table, properties=dict(
