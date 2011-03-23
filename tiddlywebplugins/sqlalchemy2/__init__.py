@@ -26,7 +26,7 @@ from tiddlyweb.store import (NoBagError, NoRecipeError, NoTiddlerError,
 from tiddlyweb.stores import StorageInterface
 from tiddlyweb.util import binary_tiddler
 
-__version__ = '2.0.1'
+__version__ = '2.0.2'
 
 #logging.basicConfig()
 #logging.getLogger('sqlalchemy.engine').setLevel(logging.INFO)
@@ -134,7 +134,8 @@ recipe_policy_table = Table('recipe_policy', metadata,
     )
 
 policy_table = Table('policy', metadata,
-    Column('id', Integer, nullable=False, primary_key=True, autoincrement=True),
+    Column('id', Integer, nullable=False, primary_key=True,
+        autoincrement=True),
     Column('constraint', String(12), nullable=False),
     Column('principal_name', Unicode(128), index=True, nullable=False),
     Column('principal_type', CHAR(1), nullable=False),
@@ -279,17 +280,20 @@ mapper(sBag, bag_table, properties=dict(
 
 mapper(sTiddler, tiddler_table, properties=dict(
     revisions=relation(sRevision,
-        primaryjoin=(and_(tiddler_table.c.bag_name == revision_table.c.bag_name,
+        primaryjoin=(and_(
+            tiddler_table.c.bag_name == revision_table.c.bag_name,
             tiddler_table.c.title == revision_table.c.tiddler_title)),
         backref='tiddler',
         cascade='delete',
         lazy=True),
     current=relation(sRevision,
-        primaryjoin=(tiddler_table.c.revision_number == revision_table.c.number),
+        primaryjoin=(
+            tiddler_table.c.revision_number == revision_table.c.number),
         viewonly=True,
         lazy=True),
     first=relation(sRevision,
-        primaryjoin=(tiddler_table.c.first_revision == revision_table.c.number),
+        primaryjoin=(
+            tiddler_table.c.first_revision == revision_table.c.number),
         viewonly=True,
         lazy=True)))
 
@@ -385,7 +389,7 @@ class Store(StorageInterface):
     def list_bag_tiddlers(self, bag):
         try:
             query = (self.session.query(sTiddler.title)
-                    .filter(sTiddler.bag_name==bag.name))
+                    .filter(sTiddler.bag_name == bag.name))
             try:
                 sbag = self.session.query(sBag.name).filter(sBag.name
                         == bag.name).one()
@@ -538,7 +542,6 @@ class Store(StorageInterface):
             self.session.rollback()
             raise
 
-
     def tiddler_put(self, tiddler):
         tiddler.revision = None
         try:
@@ -668,7 +671,7 @@ class Store(StorageInterface):
     def _store_bag(self, bag):
         try:
             sbag = self.session.query(sBag).filter(
-                    sBag.name==bag.name).one()
+                    sBag.name == bag.name).one()
         except NoResultFound:
             sbag = sBag(bag.name, bag.desc)
         sbag.desc = bag.desc
@@ -692,9 +695,9 @@ class Store(StorageInterface):
 
                     try:
                         spolicy = self.session.query(sPolicy).filter(and_(
-                                sPolicy.constraint==attribute,
-                                sPolicy.principal_name==pname,
-                                sPolicy.principal_type==ptype)).one()
+                                sPolicy.constraint == attribute,
+                                sPolicy.principal_name == pname,
+                                sPolicy.principal_type == ptype)).one()
                     except NoResultFound:
                         spolicy = sPolicy()
 
@@ -709,7 +712,7 @@ class Store(StorageInterface):
     def _store_recipe(self, recipe):
         try:
             srecipe = self.session.query(sRecipe).filter(
-                    sRecipe.name==recipe.name).one()
+                    sRecipe.name == recipe.name).one()
         except NoResultFound:
             srecipe = sRecipe(recipe.name, recipe.desc)
         srecipe.desc = recipe.desc
