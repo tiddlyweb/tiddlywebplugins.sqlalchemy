@@ -746,30 +746,37 @@ class Store(StorageInterface):
         text = sText(tiddler.text)
         self.session.add(text)
         srevision.text = text
+
         for tag in tiddler.tags:
             stag = sTag(tag)
             self.session.add(stag)
             srevision.tags.append(stag)
-        self.session.add(srevision)
-        self.session.flush()
+
 
         for field in tiddler.fields:
             if field.startswith('server.'):
                 continue
             sfield = sField(field, tiddler.fields[field])
             sfield.revision_number = srevision.number
+            self.session.add(sfield)
             srevision.fields.append(sfield)
-            self.session.merge(sfield)
+
+        self.session.add(srevision)
+        self.session.flush()
 
         stiddler = (self.session.query(sTiddler)
                 .filter(sTiddler.title == tiddler.title)
                 .filter(sTiddler.bag_name == tiddler.bag)).first()
-        if not stiddler:
-            stiddler = sTiddler(tiddler.title, tiddler.bag)
+
+        if stiddler is None:
+            stiddler = sTiddler(tiddler.title, tiddler.bag,
+                    revision_number=srevision.number,
+                    first_revision=srevision.number)
+        elif stiddler.first_revision is None:
+            stiddler.first_revision = srevision.number
         stiddler.revision_number = srevision.number
-        if stiddler.first_revision is None:
-            stiddler.first_revision = stiddler.revision_number
-        self.session.merge(stiddler)
+
+        self.session.add(stiddler)
 
         return stiddler
 
