@@ -363,33 +363,33 @@ class Store(StorageInterface):
 
     def list_recipes(self):
         try:
-            results = [Recipe(srecipe[0]) for srecipe in
-                    self.session.query(sRecipe.name).all()]
+            recipes = self.session.query(sRecipe.name).all()
             self.session.close()
-            return results
         except:
             self.session.rollback()
             raise
+        for recipe in recipes:
+            yield Recipe(recipe[0])
 
     def list_bags(self):
         try:
-            results = [Bag(sbag[0]) for sbag in
-                    self.session.query(sBag.name).all()]
+            bags = self.session.query(sBag.name).all()
             self.session.close()
-            return results
         except:
             self.session.rollback()
             raise
+        for bag in bags:
+            yield Bag(bag[0])
 
     def list_users(self):
         try:
-            results = [User(suser[0]) for suser in
-                    self.session.query(sUser.usersign).all()]
+            users = self.session.query(sUser.usersign).all()
             self.session.close()
-            return results
         except:
             self.session.rollback()
             raise
+        for user in users:
+            yield User(user[0])
 
     def list_bag_tiddlers(self, bag):
         try:
