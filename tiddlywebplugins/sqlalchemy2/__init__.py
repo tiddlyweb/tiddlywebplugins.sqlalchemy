@@ -36,9 +36,9 @@ metadata = MetaData()
 Session = scoped_session(sessionmaker())
 
 field_table = Table('field', metadata,
-    Column('revision_number', Integer, nullable=False),
-    Column('name', Unicode(64), nullable=False),
-    Column('value', Unicode(1024), nullable=False),
+    Column('revision_number', Integer, nullable=False, index=True),
+    Column('name', Unicode(64), nullable=False, index=True),
+    Column('value', Unicode(1024), nullable=False, index=True),
     PrimaryKeyConstraint('revision_number', 'name', 'value'),
     ForeignKeyConstraint(['revision_number'],
                          ['revision.number'],
@@ -46,8 +46,8 @@ field_table = Table('field', metadata,
     )
 
 tag_table = Table('tag', metadata,
-    Column('revision_number', Integer, nullable=False),
-    Column('tag', Unicode(256), nullable=False),
+    Column('revision_number', Integer, nullable=False, index=True),
+    Column('tag', Unicode(256), nullable=False, index=True),
     PrimaryKeyConstraint('revision_number', 'tag'),
     ForeignKeyConstraint(['revision_number'],
                          ['revision.number'],
@@ -103,7 +103,8 @@ bag_table = Table('bag', metadata,
     )
 
 bag_policy_table = Table('bag_policy', metadata,
-    Column('bag_id', Integer, ForeignKey('bag.id'), nullable=False),
+    Column('bag_id', Integer, ForeignKey('bag.id'), index=True,
+        nullable=False),
     Column('policy_id', Integer, ForeignKey('policy.id'), nullable=False),
     ForeignKeyConstraint(['bag_id'],
         ['bag.id'],
@@ -123,7 +124,8 @@ recipe_table = Table('recipe', metadata,
     )
 
 recipe_policy_table = Table('recipe_policy', metadata,
-    Column('recipe_id', Integer, ForeignKey('recipe.id'), nullable=False),
+    Column('recipe_id', Integer, ForeignKey('recipe.id'), index=True,
+        nullable=False),
     Column('policy_id', Integer, ForeignKey('policy.id'), nullable=False),
     ForeignKeyConstraint(['recipe_id'],
         ['recipe.id'],
@@ -361,27 +363,30 @@ class Store(StorageInterface):
 
     def list_recipes(self):
         try:
-            for srecipe in self.session.query(sRecipe.name).all():
-                yield Recipe(srecipe[0])
+            results = [Recipe(srecipe[0]) for srecipe in
+                    self.session.query(sRecipe.name).all()]
             self.session.close()
+            return results
         except:
             self.session.rollback()
             raise
 
     def list_bags(self):
         try:
-            for sbag in self.session.query(sBag.name).all():
-                yield Bag(sbag[0])
+            results = [Bag(sbag[0]) for sbag in
+                    self.session.query(sBag.name).all()]
             self.session.close()
+            return results
         except:
             self.session.rollback()
             raise
 
     def list_users(self):
         try:
-            for suser in self.session.query(sUser.usersign).all():
-                yield User(suser[0])
+            results = [User(suser[0]) for suser in
+                    self.session.query(sUser.usersign).all()]
             self.session.close()
+            return results
         except:
             self.session.rollback()
             raise
@@ -397,18 +402,18 @@ class Store(StorageInterface):
                 raise NoBagError('no results for bag %s, %s' % (bag.name, exc))
 
             tiddlers = query.all()
-
-            def _bags_tiddler(stiddler):
-                tiddler = Tiddler(stiddler.title, bag.name)
-                return tiddler
-
-            for stiddler in tiddlers:
-                if stiddler:
-                    yield _bags_tiddler(stiddler)
             self.session.close()
         except:
             self.session.rollback()
             raise
+
+        def _bags_tiddler(stiddler):
+            tiddler = Tiddler(stiddler.title, bag.name)
+            return tiddler
+
+        for stiddler in tiddlers:
+            if stiddler:
+                yield _bags_tiddler(stiddler)
 
     def list_tiddler_revisions(self, tiddler):
         try:
