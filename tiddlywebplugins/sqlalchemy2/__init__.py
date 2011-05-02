@@ -541,8 +541,8 @@ class Store(StorageInterface):
                 self.session.close()
                 return tiddler
             except NoResultFound, exc:
-                raise NoTiddlerError('Tiddler %s not found: %s' %
-                        (tiddler.title, exc))
+                raise NoTiddlerError('Tiddler %s:%s:%s not found: %s' %
+                        (tiddler.bag, tiddler.title, tiddler.revision, exc))
         except:
             self.session.rollback()
             raise
@@ -621,35 +621,30 @@ class Store(StorageInterface):
         return policy
 
     def _load_tiddler(self, tiddler, stiddler, base_tiddler):
+        revision = stiddler
+
+        tiddler.modifier = revision.modifier
+        tiddler.modified = revision.modified
+        tiddler.revision = revision.number
+        tiddler.type = revision.type
+
         try:
-            revision = stiddler
-
-            tiddler.modifier = revision.modifier
-            tiddler.modified = revision.modified
-            tiddler.revision = revision.number
-            tiddler.type = revision.type
-
             if binary_tiddler(tiddler):
                 tiddler.text = b64decode(revision.text.text.lstrip().rstrip())
             else:
                 tiddler.text = revision.text.text
-            tiddler.tags = [tag.tag for tag in revision.tags]
+        except AttributeError:
+            tiddler.text = ''
 
-            for sfield in revision.fields:
-                tiddler.fields[sfield.name] = sfield.value
+        tiddler.tags = [tag.tag for tag in revision.tags]
 
-            tiddler.created = base_tiddler.modified
-            tiddler.creator = base_tiddler.modifier
+        for sfield in revision.fields:
+            tiddler.fields[sfield.name] = sfield.value
 
-            return tiddler
-        except IndexError, exc:
-            try:
-                index_error = exc
-                raise NoTiddlerError('No revision %s for tiddler %s, %s' %
-                        (stiddler.rev, stiddler.title, exc))
-            except AttributeError:
-                raise NoTiddlerError('No tiddler for tiddler %s, %s' %
-                        (stiddler.title, index_error))
+        tiddler.created = base_tiddler.modified
+        tiddler.creator = base_tiddler.modifier
+
+        return tiddler
 
     def _load_recipe(self, recipe, srecipe):
         recipe.desc = srecipe.desc
