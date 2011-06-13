@@ -26,7 +26,7 @@ from tiddlyweb.store import (NoBagError, NoRecipeError, NoTiddlerError,
 from tiddlyweb.stores import StorageInterface
 from tiddlyweb.util import binary_tiddler
 
-__version__ = '2.0.5'
+__version__ = '2.0.6'
 
 #logging.basicConfig()
 #logging.getLogger('sqlalchemy.engine').setLevel(logging.INFO)
@@ -657,7 +657,7 @@ class Store(StorageInterface):
         recipe = []
         if recipe_string:
             for line in recipe_string.split('\n'):
-                bag, filter = line.split('?', 1)
+                bag, filter = line.rsplit('?', 1)
                 recipe.append((bag, filter))
         return recipe
 
