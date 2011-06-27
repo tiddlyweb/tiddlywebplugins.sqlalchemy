@@ -717,7 +717,7 @@ class Store(StorageInterface):
             srecipe = sRecipe(recipe.name, recipe.desc)
         srecipe.desc = recipe.desc
         self._store_policy(srecipe, recipe.policy)
-        srecipe.recipe_string = self._store_recipe_string(recipe)
+        srecipe.recipe_string = self._store_recipe_string(recipe.get_recipe())
         return srecipe
 
     def _store_recipe_string(self, recipe_list):
