@@ -8,13 +8,15 @@ from tiddlyweb import __version__ as VERSION
 from base64 import b64encode, b64decode
 from sqlalchemy import select, desc
 from sqlalchemy.engine import create_engine
-from sqlalchemy.orm import relation, mapper, sessionmaker, scoped_session
+from sqlalchemy.orm import relationship, mapper, sessionmaker, scoped_session
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.schema import (Table, Column, PrimaryKeyConstraint,
-        UniqueConstraint, ForeignKey, ForeignKeyConstraint, Index, MetaData)
+        UniqueConstraint, ForeignKey, ForeignKeyConstraint, Index)
 from sqlalchemy.sql import func
 from sqlalchemy.sql.expression import and_, text as text_, alias
 from sqlalchemy.types import Unicode, Integer, String, UnicodeText, CHAR
+from sqlalchemy.ext.declarative import declarative_base
+
 from tiddlyweb.model.bag import Bag
 from tiddlyweb.model.policy import Policy
 from tiddlyweb.model.recipe import Recipe
@@ -32,135 +34,31 @@ __version__ = '2.0.8'
 #logging.getLogger('sqlalchemy.engine').setLevel(logging.INFO)
 #logging.getLogger('sqlalchemy.pool').setLevel(logging.DEBUG)
 
-metadata = MetaData()
+Base = declarative_base()
 Session = scoped_session(sessionmaker())
 
-field_table = Table('field', metadata,
-    Column('revision_number', Integer, nullable=False, index=True),
-    Column('name', Unicode(64), nullable=False, index=True),
-    Column('value', Unicode(1024), nullable=False, index=True),
-    PrimaryKeyConstraint('revision_number', 'name', 'value'),
-    ForeignKeyConstraint(['revision_number'],
-                         ['revision.number'],
-                         onupdate='CASCADE', ondelete='CASCADE'),
-    )
-
-tag_table = Table('tag', metadata,
-    Column('revision_number', Integer, nullable=False, index=True),
-    Column('tag', Unicode(256), nullable=False, index=True),
-    PrimaryKeyConstraint('revision_number', 'tag'),
-    ForeignKeyConstraint(['revision_number'],
-                         ['revision.number'],
-                         onupdate='CASCADE', ondelete='CASCADE'),
-    )
-
-text_table = Table('text', metadata,
-    Column('revision_number', Integer, nullable=False),
-    Column('text', UnicodeText(16777215), nullable=False, default=u''),
-    PrimaryKeyConstraint('revision_number'),
-    ForeignKeyConstraint(['revision_number'],
-                         ['revision.number'],
-                         onupdate='CASCADE', ondelete='CASCADE'),
-    )
-
-
-revision_table = Table('revision', metadata,
-    Column('bag_name', Unicode(128), index=True, nullable=False),
-    Column('tiddler_title', Unicode(128), index=True, nullable=False),
-    Column('number', Integer, primary_key=True, nullable=False,
-        autoincrement=True),
-    Column('modifier', Unicode(128), index=True),
-    Column('modified', String(14), index=True),
-    Column('type', String(128), index=True),
-    ForeignKeyConstraint(['bag_name', 'tiddler_title'],
-                         ['tiddler.bag_name', 'tiddler.title'],
-                         ondelete='CASCADE',
-                         name='revision_name',
-                         use_alter=True),
-    )
-
-tiddler_table = Table('tiddler', metadata,
-    Column('bag_name', Unicode(128), index=True, nullable=False),
-    Column('title', Unicode(128), index=True, nullable=False),
-    Column('revision_number', Integer, index=True, nullable=False),
-    Column('first_revision', Integer, nullable=True),
-    PrimaryKeyConstraint('bag_name', 'title'),
-    ForeignKeyConstraint(['bag_name'],
-                         ['bag.name'],
-                         onupdate='CASCADE', ondelete='CASCADE'),
-    ForeignKeyConstraint(['revision_number'],
-                         ['revision.number']),
-    ForeignKeyConstraint(['first_revision'],
-                         ['revision.number']),
-    )
-
-bag_table = Table('bag', metadata,
-    Column('id', Integer, primary_key=True, nullable=False,
-        autoincrement=True),
-    Column('name', Unicode(128), index=True),
-    Column('desc', Unicode(1024)),
-    UniqueConstraint('id', 'name'),
-    )
-
-bag_policy_table = Table('bag_policy', metadata,
+bag_policy_table = Table('bag_policy', Base.metadata,
     Column('bag_id', Integer, ForeignKey('bag.id'), index=True,
         nullable=False),
     Column('policy_id', Integer, ForeignKey('policy.id'), nullable=False),
-    ForeignKeyConstraint(['bag_id'],
-        ['bag.id'],
-        onupdate='CASCADE', ondelete='CASCADE'),
-    ForeignKeyConstraint(['policy_id'],
-        ['policy.id'],
-        onupdate='CASCADE', ondelete='CASCADE'),
     )
 
-recipe_table = Table('recipe', metadata,
-    Column('id', Integer, primary_key=True, nullable=False,
-        autoincrement=True),
-    Column('name', Unicode(128), index=True, nullable=False),
-    Column('desc', Unicode(1024)),
-    Column('recipe_string', UnicodeText, default=u''),
-    UniqueConstraint('id', 'name'),
-    )
-
-recipe_policy_table = Table('recipe_policy', metadata,
+recipe_policy_table = Table('recipe_policy', Base.metadata,
     Column('recipe_id', Integer, ForeignKey('recipe.id'), index=True,
         nullable=False),
     Column('policy_id', Integer, ForeignKey('policy.id'), nullable=False),
-    ForeignKeyConstraint(['recipe_id'],
-        ['recipe.id'],
-        onupdate='CASCADE', ondelete='CASCADE'),
-    ForeignKeyConstraint(['policy_id'],
-        ['policy.id'],
-        onupdate='CASCADE', ondelete='CASCADE'),
-    )
-
-policy_table = Table('policy', metadata,
-    Column('id', Integer, nullable=False, primary_key=True,
-        autoincrement=True),
-    Column('constraint', String(12), nullable=False),
-    Column('principal_name', Unicode(128), index=True, nullable=False),
-    Column('principal_type', CHAR(1), nullable=False),
-    UniqueConstraint('constraint', 'principal_name', 'principal_type'),
-    )
-
-role_table = Table('role', metadata,
-    Column('user', Unicode(128), nullable=False),
-    Column('name', Unicode(50), nullable=False),
-    PrimaryKeyConstraint('user', 'name'),
-    ForeignKeyConstraint(['user'], ['user.usersign'],
-        onupdate='CASCADE', ondelete='CASCADE'),
-    )
-
-user_table = Table('user', metadata,
-    Column('usersign', Unicode(128), primary_key=True, nullable=False),
-    Column('note', Unicode(1024)),
-    Column('password', String(128)),
-    PrimaryKeyConstraint('usersign'),
     )
 
 
-class sField(object):
+class sField(Base):
+
+    __tablename__ = 'field'
+
+    revision_number = Column(Integer,
+            ForeignKey('revision.number', name='revision_number'),
+            nullable=False, index=True, primary_key=True)
+    name = Column(Unicode(64), nullable=False, index=True, primary_key=True)
+    value = Column(Unicode(1024), nullable=False, index=True, primary_key=True)
 
     def __init__(self, name, value):
         object.__init__(self)
@@ -171,7 +69,15 @@ class sField(object):
         return '<sField(%s:%s)>' % (self.name, self.value)
 
 
-class sTag(object):
+class sTag(Base):
+
+    __tablename__ = 'tag'
+
+    revision_number = Column(Integer,
+            ForeignKey('revision.number', name='revision_number'),
+            nullable=False, index=True, primary_key=True)
+    tag = Column(Unicode(256), nullable=False, index=True,
+            primary_key=True)
 
     def __init__(self, tag):
         object.__init__(self)
@@ -181,7 +87,15 @@ class sTag(object):
         return '<sTag(%s:%s)>' % (self.revision_number, self.tag)
 
 
-class sText(object):
+class sText(Base):
+
+    __tablename__ = 'text'
+
+    revision_number = Column(Integer, nullable=False)
+    revision_number =Column('revision_number', Integer,
+            ForeignKey('revision.number', name='revision_number'),
+            nullable=False, index=True, primary_key=True)
+    text = Column(UnicodeText(16777215), nullable=False, default=u'')
 
     def __init__(self, text):
         object.__init__(self)
@@ -191,7 +105,34 @@ class sText(object):
         return '<sText(%s:<text>)>' % (self.revision_number)
 
 
-class sRevision(object):
+class sRevision(Base):
+
+    __tablename__ = 'revision'
+    __table_args__ = (
+            ForeignKeyConstraint(['bag_name', 'tiddler_title'],
+                ['tiddler.bag_name', 'tiddler.title'],
+                ondelete='CASCADE',
+                name='revision_name',
+                use_alter=True),)
+
+    bag_name = Column(Unicode(128), index=True, nullable=False)
+    tiddler_title = Column(Unicode(128), index=True, nullable=False)
+    number = Column(Integer, primary_key=True, nullable=False,
+        autoincrement=True)
+    modifier = Column(Unicode(128), index=True)
+    modified = Column(String(14), index=True)
+    type = Column(String(128), index=True)
+
+    fields=relationship('sField',
+        cascade='delete',
+        lazy=True)
+    tags=relationship('sTag',
+        cascade='delete',
+        lazy=True)
+    text=relationship('sText',
+        cascade='delete',
+        uselist=False,
+        lazy=True)
 
     def __init__(self, tiddler_title, bag_name, rev=0):
         object.__init__(self)
@@ -204,7 +145,33 @@ class sRevision(object):
                 self.number)
 
 
-class sTiddler(object):
+class sTiddler(Base):
+
+    __tablename__ = 'tiddler'
+
+    bag_name = Column(Unicode(128), ForeignKey('bag.name'),
+            index=True, nullable=False, primary_key=True)
+    title = Column(Unicode(128), index=True, nullable=False, primary_key=True)
+    revision_number = Column(Integer, ForeignKey('revision.number'),
+            index=True, nullable=False)
+    first_revision = Column(Integer, ForeignKey('revision.number'),
+            nullable=True)
+
+    revisions=relationship('sRevision',
+            primaryjoin=('(sTiddler.bag_name==sRevision.bag_name) &'
+                '(sTiddler.title == sRevision.tiddler_title)'),
+            cascade='delete',
+            lazy=True)
+
+    current=relationship(sRevision,
+            primaryjoin=('sTiddler.first_revision==sRevision.number'),
+            viewonly=True,
+            lazy=True)
+
+    first=relationship(sRevision,
+            primaryjoin=('sTiddler.revision_number==sRevision.number'),
+            viewonly=True,
+            lazy=True)
 
     def __init__(self, title, bag_name, revision_number=None,
             first_revision=None):
@@ -219,7 +186,18 @@ class sTiddler(object):
                 self.title, self.revision_number, self.first_revision)
 
 
-class sPolicy(object):
+class sPolicy(Base):
+
+    __tablename__ = 'policy'
+    __table_args__ = (
+        UniqueConstraint('constraint', 'principal_name',
+            'principal_type'),)
+
+    id = Column(Integer, nullable=False, primary_key=True,
+        autoincrement=True)
+    constraint = Column(String(12), nullable=False)
+    principal_name = Column(Unicode(128), index=True, nullable=False)
+    principal_type = Column(CHAR(1), nullable=False)
 
     def __init__(self, id=None):
         object.__init__(self)
@@ -230,7 +208,24 @@ class sPolicy(object):
                 self.principal_type, self.principal_name, self.constraint)
 
 
-class sBag(object):
+class sBag(Base):
+
+    __tablename__ = 'bag'
+    __table_args = (
+            UniqueConstraint('id', 'name'))
+
+    id = Column(Integer, primary_key=True, nullable=False,
+            autoincrement=True)
+    name = Column(Unicode(128), index=True)
+    desc = Column(Unicode(1024))
+
+    policy=relationship('sPolicy',
+            secondary=bag_policy_table,
+            passive_updates=False,
+            lazy=False)
+    tiddlers=relationship('sTiddler',
+            cascade='delete',
+            lazy=True)
 
     def __init__(self, name, desc=''):
         object.__init__(self)
@@ -241,7 +236,23 @@ class sBag(object):
         return '<sBag(%s:%s)>' % (self.id, self.name)
 
 
-class sRecipe(object):
+class sRecipe(Base):
+
+    __tablename__ = 'recipe'
+    __table_args = (
+            UniqueConstraint('id', 'name'))
+
+
+    id = Column(Integer, primary_key=True, nullable=False,
+        autoincrement=True)
+    name = Column(Unicode(128), index=True, nullable=False)
+    desc = Column(Unicode(1024))
+    recipe_string = Column(UnicodeText, default=u'')
+
+    policy=relationship('sPolicy',
+            secondary=recipe_policy_table,
+            passive_updates=False,
+            lazy=False)
 
     def __init__(self, name, desc=''):
         self.name = name
@@ -251,84 +262,32 @@ class sRecipe(object):
         return '<sRecipe(%s:%s)>' % (self.id, self.name)
 
 
-class sRole(object):
+class sRole(Base):
+
+    __tablename__ = 'role'
+
+    user = Column(Unicode(128), ForeignKey('user.usersign'),
+            nullable=False, primary_key=True)
+    name = Column(Unicode(50), nullable=False, primary_key=True)
 
     def __repr__(self):
         return '<sRole(%s:%s)>' % (self.user, self.name)
 
 
-class sUser(object):
+class sUser(Base):
+
+    __tablename__ = 'user'
+
+    usersign = Column(Unicode(128), primary_key=True, nullable=False)
+    note = Column(Unicode(1024))
+    password = Column(String(128))
+
+    roles=relationship(sRole,
+            lazy=False,
+            cascade='delete')
 
     def __repr__(self):
         return '<sUser(%s)>' % (self.usersign)
-
-
-mapper(sField, field_table)
-mapper(sTag, tag_table)
-mapper(sText, text_table)
-
-mapper(sBag, bag_table, properties=dict(
-    policy=relation(sPolicy, secondary=bag_policy_table,
-        primaryjoin=(bag_policy_table.c.bag_id == bag_table.c.id),
-        secondaryjoin=(bag_policy_table.c.policy_id == policy_table.c.id),
-        passive_updates=False,
-        lazy=False),
-    tiddlers=relation(sTiddler,
-        primaryjoin=(bag_table.c.name == tiddler_table.c.bag_name),
-        backref='bag',
-        cascade='delete',
-        lazy=True)
-    ))
-
-mapper(sTiddler, tiddler_table, properties=dict(
-    revisions=relation(sRevision,
-        primaryjoin=(and_(
-            tiddler_table.c.bag_name == revision_table.c.bag_name,
-            tiddler_table.c.title == revision_table.c.tiddler_title)),
-        backref='tiddler',
-        cascade='delete',
-        lazy=True),
-    current=relation(sRevision,
-        primaryjoin=(
-            tiddler_table.c.revision_number == revision_table.c.number),
-        viewonly=True,
-        lazy=True),
-    first=relation(sRevision,
-        primaryjoin=(
-            tiddler_table.c.first_revision == revision_table.c.number),
-        viewonly=True,
-        lazy=True)))
-
-mapper(sRevision, revision_table, properties=dict(
-    fields=relation(sField,
-        backref='revision',
-        cascade='delete',
-        lazy=True),
-    tags=relation(sTag,
-        backref='revision',
-        cascade='delete',
-        lazy=True),
-    text=relation(sText,
-        backref='revision',
-        cascade='delete',
-        uselist=False,
-        lazy=True)))
-
-mapper(sUser, user_table, properties=dict(
-    roles=relation(sRole,
-        lazy=False,
-        cascade='delete')))
-
-mapper(sPolicy, policy_table)
-
-mapper(sRecipe, recipe_table, properties=dict(
-    policy=relation(sPolicy, secondary=recipe_policy_table,
-        primaryjoin=(recipe_table.c.id == recipe_policy_table.c.recipe_id),
-        secondaryjoin=(recipe_policy_table.c.policy_id == policy_table.c.id),
-        passive_updates=False,
-        lazy=False)))
-
-mapper(sRole, role_table)
 
 
 class Store(StorageInterface):
@@ -349,13 +308,13 @@ class Store(StorageInterface):
         creating tables if needed.
         """
         engine = create_engine(self._db_config())
-        metadata.bind = engine
+        Base.metadata.bind = engine
         Session.configure(bind=engine)
         self.session = Session()
         self.serializer = Serializer('text')
 
         if not Store.mapped:
-            metadata.create_all(engine)
+            Base.metadata.create_all(engine)
             Store.mapped = True
 
     def _db_config(self):
@@ -424,8 +383,8 @@ class Store(StorageInterface):
     def list_tiddler_revisions(self, tiddler):
         try:
             query = (self.session.query(sRevision.number)
-                    .filter(revision_table.c.tiddler_title == tiddler.title)
-                    .filter(revision_table.c.bag_name == tiddler.bag)
+                    .filter(sRevision.tiddler_title == tiddler.title)
+                    .filter(sRevision.bag_name == tiddler.bag)
                     .order_by(sRevision.number.desc()))
             revisions = query.all()
             if not revisions:
