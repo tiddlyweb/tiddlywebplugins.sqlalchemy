@@ -12,8 +12,7 @@ from sqlalchemy.orm import relationship, mapper, sessionmaker, scoped_session
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.schema import (Table, Column, PrimaryKeyConstraint,
         UniqueConstraint, ForeignKey, ForeignKeyConstraint, Index)
-from sqlalchemy.sql import func
-from sqlalchemy.sql.expression import and_, text as text_, alias
+from sqlalchemy.sql.expression import and_
 from sqlalchemy.types import Unicode, Integer, String, UnicodeText, CHAR
 from sqlalchemy.ext.declarative import declarative_base
 
@@ -55,7 +54,7 @@ class sField(Base):
     __tablename__ = 'field'
 
     revision_number = Column(Integer,
-            ForeignKey('revision.number', name='revision_number'),
+            ForeignKey('revision.number'),
             nullable=False, index=True, primary_key=True)
     name = Column(Unicode(64), nullable=False, index=True, primary_key=True)
     value = Column(Unicode(1024), nullable=False, index=True, primary_key=True)
@@ -74,7 +73,7 @@ class sTag(Base):
     __tablename__ = 'tag'
 
     revision_number = Column(Integer,
-            ForeignKey('revision.number', name='revision_number'),
+            ForeignKey('revision.number'),
             nullable=False, index=True, primary_key=True)
     tag = Column(Unicode(256), nullable=False, index=True,
             primary_key=True)
@@ -93,7 +92,7 @@ class sText(Base):
 
     revision_number = Column(Integer, nullable=False)
     revision_number =Column('revision_number', Integer,
-            ForeignKey('revision.number', name='revision_number'),
+            ForeignKey('revision.number'),
             nullable=False, index=True, primary_key=True)
     text = Column(UnicodeText(16777215), nullable=False, default=u'')
 
@@ -112,7 +111,7 @@ class sRevision(Base):
             ForeignKeyConstraint(['bag_name', 'tiddler_title'],
                 ['tiddler.bag_name', 'tiddler.title'],
                 ondelete='CASCADE',
-                name='revision_name',
+                name='srevisionbagtitle',
                 use_alter=True),)
 
     bag_name = Column(Unicode(128), index=True, nullable=False)
@@ -155,7 +154,7 @@ class sTiddler(Base):
     revision_number = Column(Integer, ForeignKey('revision.number'),
             index=True, nullable=False)
     first_revision = Column(Integer, ForeignKey('revision.number'),
-            nullable=True)
+            index=True, nullable=True)
 
     revisions=relationship('sRevision',
             primaryjoin=('(sTiddler.bag_name==sRevision.bag_name) &'
@@ -164,12 +163,12 @@ class sTiddler(Base):
             lazy=True)
 
     current=relationship(sRevision,
-            primaryjoin=('sTiddler.first_revision==sRevision.number'),
+            primaryjoin=('sTiddler.revision_number==sRevision.number'),
             viewonly=True,
             lazy=True)
 
     first=relationship(sRevision,
-            primaryjoin=('sTiddler.revision_number==sRevision.number'),
+            primaryjoin=('sTiddler.first_revision==sRevision.number'),
             viewonly=True,
             lazy=True)
 
@@ -586,24 +585,22 @@ class Store(StorageInterface):
         return policy
 
     def _load_tiddler(self, tiddler, stiddler, base_tiddler):
-        revision = stiddler
-
-        tiddler.modifier = revision.modifier
-        tiddler.modified = revision.modified
-        tiddler.revision = revision.number
-        tiddler.type = revision.type
+        tiddler.modifier = stiddler.modifier
+        tiddler.modified = stiddler.modified
+        tiddler.revision = stiddler.number
+        tiddler.type = stiddler.type
 
         try:
             if binary_tiddler(tiddler):
-                tiddler.text = b64decode(revision.text.text.lstrip().rstrip())
+                tiddler.text = b64decode(stiddler.text.text.lstrip().rstrip())
             else:
-                tiddler.text = revision.text.text
+                tiddler.text = stiddler.text.text
         except AttributeError:
             tiddler.text = ''
 
-        tiddler.tags = [tag.tag for tag in revision.tags]
+        tiddler.tags = [tag.tag for tag in stiddler.tags]
 
-        for sfield in revision.fields:
+        for sfield in stiddler.fields:
             tiddler.fields[sfield.name] = sfield.value
 
         tiddler.created = base_tiddler.modified
