@@ -48,6 +48,20 @@ recipe_policy_table = Table('recipe_policy', Base.metadata,
     Column('policy_id', Integer, ForeignKey('policy.id'), nullable=False),
     )
 
+current_revision_table = Table('current_revision', Base.metadata,
+        Column('tiddler_id', Integer, ForeignKey('tiddler.id'),
+            index=True, nullable=False, primary_key=True),
+        Column('current_id', Integer, ForeignKey('revision.number'),
+            index=True, nullable=False),
+        UniqueConstraint('tiddler_id', 'current_id'))
+
+first_revision_table = Table('first_revision', Base.metadata,
+        Column('tiddler_id', Integer, ForeignKey('tiddler.id'),
+            index=True, nullable=False, primary_key=True),
+        Column('first_id', Integer, ForeignKey('revision.number'),
+            index=True, nullable=False),
+        UniqueConstraint('tiddler_id', 'first_id'))
+
 
 class sField(Base):
 
@@ -106,15 +120,10 @@ class sText(Base):
 class sRevision(Base):
 
     __tablename__ = 'revision'
-    __table_args__ = (
-            ForeignKeyConstraint(['bag_name', 'tiddler_title'],
-                ['tiddler.bag_name', 'tiddler.title'],
-                ondelete='CASCADE',
-                name='srevisionbagtitle',
-                use_alter=True),)
 
-    bag_name = Column(Unicode(128), index=True, nullable=False)
-    tiddler_title = Column(Unicode(128), index=True, nullable=False)
+    tiddler_id = Column(Integer, ForeignKey('tiddler.id'),
+            nullable=False,
+            index=True)
     number = Column(Integer, primary_key=True, nullable=False,
         autoincrement=True)
     modifier = Column(Unicode(128), index=True)
@@ -135,56 +144,50 @@ class sRevision(Base):
         uselist=False,
         lazy=True)
 
-    def __init__(self, tiddler_title, bag_name, rev=0):
-        object.__init__(self)
-        self.bag_name = bag_name
-        self.tiddler_title = tiddler_title
-        self.number = rev
-
     def __repr__(self):
-        return '<sRevision(%s:%s:%s)>' % (self.bag_name, self.tiddler_title,
+        return '<sRevision(%s:%s)>' % (self.tiddler_id,
                 self.number)
 
 
 class sTiddler(Base):
-
     __tablename__ = 'tiddler'
+    __table_args__ = (
+            UniqueConstraint('id', 'title', 'bag'),)
 
-    bag_name = Column(Unicode(128), ForeignKey('bag.name'),
-            index=True, nullable=False, primary_key=True)
-    title = Column(Unicode(128), index=True, nullable=False, primary_key=True)
-    revision_number = Column(Integer, ForeignKey('revision.number'),
-            index=True, nullable=True)
-    first_revision = Column(Integer, ForeignKey('revision.number'),
-            index=True, nullable=True)
+    id = Column(Integer,
+            primary_key=True,
+            nullable=False,
+            autoincrement=True)
+    bag = Column(Unicode(128), ForeignKey('bag.name'),
+            index=True,
+            nullable=False)
+    title = Column(Unicode(128),
+            index=True,
+            nullable=False)
 
     revisions=relationship('sRevision',
-            primaryjoin=('(sTiddler.bag_name==sRevision.bag_name) &'
-                '(sTiddler.title == sRevision.tiddler_title)'),
-            cascade='all, delete-orphan',
-            lazy=True)
+            order_by="desc(sRevision.number)",
+            lazy=True,
+            cascade='delete, delete-orphan')
 
-    current=relationship(sRevision,
-            primaryjoin=('sTiddler.revision_number==sRevision.number'),
-            viewonly=True,
-            lazy=True)
+    current=relationship('sRevision', uselist=False,
+            secondary=current_revision_table,
+            primaryjoin=id==current_revision_table.c.tiddler_id,
+            secondaryjoin=current_revision_table.c.current_id==sRevision.number)
 
-    first=relationship(sRevision,
-            primaryjoin=('sTiddler.first_revision==sRevision.number'),
-            viewonly=True,
-            lazy=True)
+    first=relationship('sRevision',
+            uselist=False,
+            secondary=first_revision_table,
+            primaryjoin=id==first_revision_table.c.tiddler_id,
+            secondaryjoin=first_revision_table.c.first_id==sRevision.number)
 
-    def __init__(self, title, bag_name, revision_number=None,
-            first_revision=None):
+    def __init__(self, bag, title):
         object.__init__(self)
+        self.bag = bag
         self.title = title
-        self.bag_name = bag_name
-        self.revision_number = revision_number
-        self.first_revision = first_revision
 
     def __repr__(self):
-        return '<sTiddler(%s:%s:%s:%s)>' % (self.bag_name,
-                self.title, self.revision_number, self.first_revision)
+        return '<sTiddler(%s:%s:%s)>' % (self.id, self.bag, self.title)
 
 
 class sPolicy(Base):
@@ -224,7 +227,7 @@ class sBag(Base):
             secondary=bag_policy_table,
             passive_updates=False,
             lazy=False)
-    tiddlers=relationship('sTiddler',
+    tiddlers = relationship('sTiddler',
             cascade='delete, delete-orphan',
             lazy=True)
 
@@ -373,15 +376,15 @@ class Store(StorageInterface):
 
     def list_tiddler_revisions(self, tiddler):
         try:
-            query = (self.session.query(sRevision.number)
-                    .filter(sRevision.tiddler_title == tiddler.title)
-                    .filter(sRevision.bag_name == tiddler.bag)
-                    .order_by(sRevision.number.desc()))
-            revisions = query.all()
-            if not revisions:
-                raise NoTiddlerError('tiddler %s not found' % (tiddler.title,))
-            else:
-                return [revision[0] for revision in revisions]
+            try:
+                revisions = self.session.query(sTiddler).filter(and_(
+                        sTiddler.title == tiddler.title,
+                        sTiddler.bag == tiddler.bag)).one().revisions
+            except NoResultFound, exc:
+                raise NoTiddlerError('tiddler %s not found: %s' %(
+                    tiddler.title, exc))
+
+            return [revision.number for revision in revisions]
         except:
             self.session.rollback()
             raise
@@ -467,7 +470,7 @@ class Store(StorageInterface):
             try:
                 stiddlers = (self.session.query(sTiddler).
                         filter(sTiddler.title == tiddler.title).
-                        filter(sTiddler.bag_name == tiddler.bag))
+                        filter(sTiddler.bag == tiddler.bag))
                 rows = self.session.delete(stiddlers.one())
                 if rows == 0:
                     raise NoResultFound
@@ -482,18 +485,20 @@ class Store(StorageInterface):
     def tiddler_get(self, tiddler):
         try:
             try:
-                query = (self.session.query(sTiddler).
-                        filter(sTiddler.title == tiddler.title).
-                        filter(sTiddler.bag_name == tiddler.bag))
-                stiddler = query.one()
-                base_tiddler = stiddler.first
-                current_tiddler = stiddler.current
                 if tiddler.revision:
-                    query = (self.session.query(sRevision).
-                        filter(sRevision.number == tiddler.revision))
-                    current_tiddler = query.one()
-                tiddler = self._load_tiddler(tiddler, current_tiddler,
-                    base_tiddler)
+                    revision = self.session.query(sRevision).filter(
+                            sRevision.number==tiddler.revision).one()
+                    stiddler = self.session.query(sTiddler).filter(
+                            sTiddler.id==revision.tiddler_id).one()
+                    current_revision = revision
+                else:
+                    stiddler = self.session.query(sTiddler).filter(and_(
+                            sTiddler.title==tiddler.title,
+                            sTiddler.bag==tiddler.bag)).one()
+                    current_revision = stiddler.current
+                base_revision = stiddler.first
+                tiddler = self._load_tiddler(tiddler, current_revision,
+                    base_revision)
                 self.session.close()
                 return tiddler
             except NoResultFound, exc:
@@ -509,7 +514,7 @@ class Store(StorageInterface):
             if not tiddler.bag:
                 raise NoBagError('bag required to save')
             stiddler = self._store_tiddler(tiddler)
-            tiddler.revision = stiddler.revision_number
+            tiddler.revision = stiddler.current.number
             self.session.commit()
         except:
             self.session.rollback()
@@ -576,27 +581,28 @@ class Store(StorageInterface):
                     setattr(policy, pol.constraint, principals)
         return policy
 
-    def _load_tiddler(self, tiddler, stiddler, base_tiddler):
-        tiddler.modifier = stiddler.modifier
-        tiddler.modified = stiddler.modified
-        tiddler.revision = stiddler.number
-        tiddler.type = stiddler.type
+    def _load_tiddler(self, tiddler, current_revision, base_revision):
+        tiddler.modifier = current_revision.modifier
+        tiddler.modified = current_revision.modified
+        tiddler.revision = current_revision.number
+        tiddler.type = current_revision.type
 
         try:
             if binary_tiddler(tiddler):
-                tiddler.text = b64decode(stiddler.text.text.lstrip().rstrip())
+                tiddler.text = b64decode(
+                        current_revision.text.text.lstrip().rstrip())
             else:
-                tiddler.text = stiddler.text.text
+                tiddler.text = current_revision.text.text
         except AttributeError:
             tiddler.text = ''
 
-        tiddler.tags = [tag.tag for tag in stiddler.tags]
+        tiddler.tags = [tag.tag for tag in current_revision.tags]
 
-        for sfield in stiddler.fields:
+        for sfield in current_revision.fields:
             tiddler.fields[sfield.name] = sfield.value
 
-        tiddler.created = base_tiddler.modified
-        tiddler.creator = base_tiddler.modifier
+        tiddler.created = base_revision.modified
+        tiddler.creator = base_revision.modifier
 
         return tiddler
 
@@ -692,16 +698,24 @@ class Store(StorageInterface):
         if binary_tiddler(tiddler):
             tiddler.text = unicode(b64encode(tiddler.text))
 
-        stiddler = sTiddler(tiddler.title, tiddler.bag)
-        stiddler = self.session.merge(stiddler)
-
-        srevision = sRevision(tiddler.title, tiddler.bag, None)
-        srevision = self.session.merge(srevision)
-        self.session.flush()
-
+        srevision = sRevision()
         srevision.type = tiddler.type
         srevision.modified = tiddler.modified
         srevision.modifier = tiddler.modifier
+
+        try:
+            stiddler = self.session.query(sTiddler).filter(
+                    and_(sTiddler.title==tiddler.title,
+                        sTiddler.bag==tiddler.bag)).one()
+        except NoResultFound:
+            stiddler = sTiddler(tiddler.bag, tiddler.title)
+        stiddler = self.session.merge(stiddler)
+
+        self.session.flush()
+        srevision.tiddler_id = stiddler.id
+
+        self.session.add(srevision)
+        self.session.flush()
 
         text = sText(tiddler.text)
         text.revision_number = srevision.number
@@ -712,13 +726,12 @@ class Store(StorageInterface):
         srevision.fields = [sField(field, tiddler.fields[field])
             for field in tiddler.fields if not field.startswith('server.')]
 
-        self.session.add(srevision)
+        if not stiddler.first:
+            stiddler.first = srevision
+        stiddler.current = srevision
 
-        if stiddler.first_revision is None:
-            stiddler.first_revision = srevision.number
-        stiddler.revision_number = srevision.number
-
-        self.session.merge(stiddler)
+        self.session.add(stiddler)
+        self.session.flush()
 
         return stiddler
 
