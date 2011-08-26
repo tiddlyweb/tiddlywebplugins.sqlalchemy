@@ -90,8 +90,7 @@ class sText(Base):
 
     __tablename__ = 'text'
 
-    revision_number = Column(Integer, nullable=False)
-    revision_number =Column('revision_number', Integer,
+    revision_number = Column('revision_number', Integer,
             ForeignKey('revision.number'),
             nullable=False, index=True, primary_key=True)
     text = Column(UnicodeText(16777215), nullable=False, default=u'')
@@ -123,13 +122,16 @@ class sRevision(Base):
     type = Column(String(128), index=True)
 
     fields=relationship('sField',
-        cascade='delete',
-        lazy=True)
+        cascade='all, delete-orphan',
+        backref='fields',
+        lazy=False)
     tags=relationship('sTag',
-        cascade='delete',
-        lazy=True)
+        cascade='all, delete-orphan',
+        backref='tags',
+        lazy=False)
     text=relationship('sText',
-        cascade='delete',
+        cascade='all, delete-orphan',
+        backref='revision_text',
         uselist=False,
         lazy=True)
 
@@ -140,7 +142,7 @@ class sRevision(Base):
         self.number = rev
 
     def __repr__(self):
-        return '<sRevision(%s:%s:%d)>' % (self.bag_name, self.tiddler_title,
+        return '<sRevision(%s:%s:%s)>' % (self.bag_name, self.tiddler_title,
                 self.number)
 
 
@@ -152,14 +154,14 @@ class sTiddler(Base):
             index=True, nullable=False, primary_key=True)
     title = Column(Unicode(128), index=True, nullable=False, primary_key=True)
     revision_number = Column(Integer, ForeignKey('revision.number'),
-            index=True, nullable=False)
+            index=True, nullable=True)
     first_revision = Column(Integer, ForeignKey('revision.number'),
             index=True, nullable=True)
 
     revisions=relationship('sRevision',
             primaryjoin=('(sTiddler.bag_name==sRevision.bag_name) &'
                 '(sTiddler.title == sRevision.tiddler_title)'),
-            cascade='delete',
+            cascade='all, delete-orphan',
             lazy=True)
 
     current=relationship(sRevision,
@@ -223,7 +225,7 @@ class sBag(Base):
             passive_updates=False,
             lazy=False)
     tiddlers=relationship('sTiddler',
-            cascade='delete',
+            cascade='delete, delete-orphan',
             lazy=True)
 
     def __init__(self, name, desc=''):
@@ -357,27 +359,17 @@ class Store(StorageInterface):
 
     def list_bag_tiddlers(self, bag):
         try:
-            query = (self.session.query(sTiddler.title)
-                    .filter(sTiddler.bag_name == bag.name))
+            query = self.session.query(sBag).filter(sBag.name == bag.name)
             try:
-                sbag = self.session.query(sBag.name).filter(sBag.name
-                        == bag.name).one()
+                tiddlers = query.one().tiddlers
             except NoResultFound, exc:
                 raise NoBagError('no results for bag %s, %s' % (bag.name, exc))
-
-            tiddlers = query.all()
             self.session.close()
         except:
             self.session.rollback()
             raise
 
-        def _bags_tiddler(stiddler):
-            tiddler = Tiddler(stiddler.title, bag.name)
-            return tiddler
-
-        for stiddler in tiddlers:
-            if stiddler:
-                yield _bags_tiddler(stiddler)
+        return (Tiddler(stiddler.title, bag.name) for stiddler in tiddlers)
 
     def list_tiddler_revisions(self, tiddler):
         try:
@@ -697,48 +689,36 @@ class Store(StorageInterface):
             self.session.merge(srole)
 
     def _store_tiddler(self, tiddler):
-        srevision = sRevision(tiddler.title, tiddler.bag, None)
-
         if binary_tiddler(tiddler):
             tiddler.text = unicode(b64encode(tiddler.text))
+
+        stiddler = sTiddler(tiddler.title, tiddler.bag)
+        stiddler = self.session.merge(stiddler)
+
+        srevision = sRevision(tiddler.title, tiddler.bag, None)
+        srevision = self.session.merge(srevision)
+        self.session.flush()
 
         srevision.type = tiddler.type
         srevision.modified = tiddler.modified
         srevision.modifier = tiddler.modifier
+
         text = sText(tiddler.text)
+        text.revision_number = srevision.number
         self.session.add(text)
-        srevision.text = text
 
-        for tag in tiddler.tags:
-            stag = sTag(tag)
-            self.session.add(stag)
-            srevision.tags.append(stag)
+        srevision.tags = [sTag(tag) for tag in tiddler.tags]
 
-
-        for field in tiddler.fields:
-            if field.startswith('server.'):
-                continue
-            sfield = sField(field, tiddler.fields[field])
-            sfield.revision_number = srevision.number
-            self.session.add(sfield)
-            srevision.fields.append(sfield)
+        srevision.fields = [sField(field, tiddler.fields[field])
+            for field in tiddler.fields if not field.startswith('server.')]
 
         self.session.add(srevision)
-        self.session.flush()
 
-        stiddler = (self.session.query(sTiddler)
-                .filter(sTiddler.title == tiddler.title)
-                .filter(sTiddler.bag_name == tiddler.bag)).first()
-
-        if stiddler is None:
-            stiddler = sTiddler(tiddler.title, tiddler.bag,
-                    revision_number=srevision.number,
-                    first_revision=srevision.number)
-        elif stiddler.first_revision is None:
+        if stiddler.first_revision is None:
             stiddler.first_revision = srevision.number
         stiddler.revision_number = srevision.number
 
-        self.session.add(stiddler)
+        self.session.merge(stiddler)
 
         return stiddler
 
