@@ -170,18 +170,21 @@ class sTiddler(Base):
             lazy=True,
             cascade='delete, delete-orphan')
 
-    current=relationship('sRevision', uselist=False,
+    current=relationship('sRevision',
+            lazy=False,
+            uselist=False,
             secondary=current_revision_table,
             primaryjoin=id==current_revision_table.c.tiddler_id,
             secondaryjoin=current_revision_table.c.current_id==sRevision.number)
 
     first=relationship('sRevision',
+            lazy=False,
             uselist=False,
             secondary=first_revision_table,
             primaryjoin=id==first_revision_table.c.tiddler_id,
             secondaryjoin=first_revision_table.c.first_id==sRevision.number)
 
-    def __init__(self, bag, title):
+    def __init__(self, title, bag):
         object.__init__(self)
         self.bag = bag
         self.title = title
@@ -220,12 +223,11 @@ class sBag(Base):
 
     id = Column(Integer, primary_key=True, nullable=False,
             autoincrement=True)
-    name = Column(Unicode(128), index=True)
+    name = Column(Unicode(128), index=True, unique=True)
     desc = Column(Unicode(1024))
 
     policy=relationship('sPolicy',
             secondary=bag_policy_table,
-            passive_updates=False,
             lazy=False)
     tiddlers = relationship('sTiddler',
             cascade='delete, delete-orphan',
@@ -255,7 +257,6 @@ class sRecipe(Base):
 
     policy=relationship('sPolicy',
             secondary=recipe_policy_table,
-            passive_updates=False,
             lazy=False)
 
     def __init__(self, name, desc=''):
@@ -423,7 +424,6 @@ class Store(StorageInterface):
     def recipe_put(self, recipe):
         try:
             srecipe = self._store_recipe(recipe)
-            self.session.merge(srecipe)
             self.session.commit()
         except:
             self.session.rollback()
@@ -459,7 +459,6 @@ class Store(StorageInterface):
     def bag_put(self, bag):
         try:
             sbag = self._store_bag(bag)
-            self.session.merge(sbag)
             self.session.commit()
         except:
             self.session.rollback()
@@ -633,7 +632,8 @@ class Store(StorageInterface):
             sbag = self.session.query(sBag).filter(
                     sBag.name == bag.name).one()
         except NoResultFound:
-            sbag = sBag(bag.name, bag.desc)
+            sbag = sBag(bag.name)
+            self.session.add(sbag)
         sbag.desc = bag.desc
         self._store_policy(sbag, bag.policy)
         return sbag
@@ -660,11 +660,11 @@ class Store(StorageInterface):
                                 sPolicy.principal_type == ptype)).one()
                     except NoResultFound:
                         spolicy = sPolicy()
-
                         spolicy.constraint = attribute
                         spolicy.principal_name = pname
                         spolicy.principal_type = ptype
                         self.session.add(spolicy)
+
                     policies.append(spolicy)
 
         container.policy = policies
@@ -675,6 +675,7 @@ class Store(StorageInterface):
                     sRecipe.name == recipe.name).one()
         except NoResultFound:
             srecipe = sRecipe(recipe.name, recipe.desc)
+            self.session.add(srecipe)
         srecipe.desc = recipe.desc
         self._store_policy(srecipe, recipe.policy)
         srecipe.recipe_string = self._store_recipe_string(recipe.get_recipe())
@@ -698,40 +699,46 @@ class Store(StorageInterface):
         if binary_tiddler(tiddler):
             tiddler.text = unicode(b64encode(tiddler.text))
 
-        srevision = sRevision()
-        srevision.type = tiddler.type
-        srevision.modified = tiddler.modified
-        srevision.modifier = tiddler.modifier
-
         try:
             stiddler = self.session.query(sTiddler).filter(
                     and_(sTiddler.title==tiddler.title,
                         sTiddler.bag==tiddler.bag)).one()
+            newTiddler = False
         except NoResultFound:
-            stiddler = sTiddler(tiddler.bag, tiddler.title)
-        stiddler = self.session.merge(stiddler)
+            stiddler = sTiddler(tiddler.title, tiddler.bag)
+            self.session.add(stiddler)
+            newTiddler = True
 
         self.session.flush()
-        srevision.tiddler_id = stiddler.id
 
+        srevision = sRevision()
+        srevision.type = tiddler.type
+        srevision.modified = tiddler.modified
+        srevision.modifier = tiddler.modifier
+        srevision.tiddler_id = stiddler.id
         self.session.add(srevision)
+
         self.session.flush()
 
         text = sText(tiddler.text)
         text.revision_number = srevision.number
         self.session.add(text)
 
-        srevision.tags = [sTag(tag) for tag in tiddler.tags]
+        for tag in tiddler.tags:
+            stag = sTag(tag)
+            stag.revision_number = srevision.number
+            self.session.add(stag)
 
-        srevision.fields = [sField(field, tiddler.fields[field])
-            for field in tiddler.fields if not field.startswith('server.')]
+        for field in tiddler.fields:
+            if not field.startswith('server.'):
+                sfield = sField(field, tiddler.fields[field])
+                sfield.revision_number = srevision.number
+                self.session.add(sfield)
 
-        if not stiddler.first:
-            stiddler.first = srevision
-        stiddler.current = srevision
-
-        self.session.add(stiddler)
         self.session.flush()
+        stiddler.current = srevision
+        if newTiddler:
+            stiddler.first = srevision
 
         return stiddler
 
