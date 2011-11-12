@@ -26,5 +26,6 @@ setup(
         'tiddlyweb>=1.2.0',
         'sqlalchemy',
         ],
-    zip_safe = False
+    zip_safe = False,
+    license = 'BSD'
     )
