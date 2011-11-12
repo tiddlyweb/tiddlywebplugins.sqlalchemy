@@ -758,7 +758,6 @@ class Store(StorageInterface):
             self.session.add(stag)
             srevision.tags.append(stag)
 
-
         for field in tiddler.fields:
             if field.startswith('server.'):
                 continue
