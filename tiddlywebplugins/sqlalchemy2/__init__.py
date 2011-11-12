@@ -26,7 +26,7 @@ from tiddlyweb.store import (NoBagError, NoRecipeError, NoTiddlerError,
 from tiddlyweb.stores import StorageInterface
 from tiddlyweb.util import binary_tiddler
 
-__version__ = '2.0.8'
+__version__ = '2.0.9'
 
 #logging.basicConfig()
 #logging.getLogger('sqlalchemy.engine').setLevel(logging.INFO)
