@@ -8,6 +8,8 @@ clean:
 	rm -r dist || true
 	rm -r build || true
 	rm -r *.egg-info || true
+	rm test.db || true
+	rm tiddlyweb.log || true
 
 test:
 	py.test -x test
