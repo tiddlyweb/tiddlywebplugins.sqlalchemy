@@ -365,3 +365,7 @@ def test_bag_deletes_tiddlers():
     bag = Bag('pone')
     py.test.raises(NoBagError, 'list(store.list_bag_tiddlers(bag))')
     py.test.raises(NoTiddlerError, 'store.list_tiddler_revisions(tiddler)')
+
+def test_saving_to_non_bag():
+    tiddler = Tiddler('oh hi', 'nonexistentbag')
+    py.test.raises(NoBagError, 'store.put(tiddler)')

@@ -558,6 +558,11 @@ class Store(StorageInterface):
         try:
             if not tiddler.bag:
                 raise NoBagError('bag required to save')
+            try:
+                sbag = self.session.query(sBag).filter(sBag.name
+                        == tiddler.bag).one()
+            except NoResultFound, exc:
+                raise NoBagError('bag must exist for tiddler save: %s', exc)
             stiddler = self._store_tiddler(tiddler)
             tiddler.revision = stiddler.revision_number
             self.session.commit()
