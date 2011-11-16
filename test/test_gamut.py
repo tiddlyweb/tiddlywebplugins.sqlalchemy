@@ -7,6 +7,7 @@ from tiddlyweb.config import config
 from tiddlyweb.store import Store, NoBagError, NoUserError, NoRecipeError, NoTiddlerError
 
 from tiddlyweb.model.bag import Bag
+from tiddlyweb.model.policy import Policy
 from tiddlyweb.model.recipe import Recipe
 from tiddlyweb.model.tiddler import Tiddler
 from tiddlyweb.model.user import User
@@ -177,6 +178,27 @@ def test_handle_empty_policy():
     assert new_bag.policy.write == []
     assert new_bag.policy.accept == []
     assert new_bag.policy.owner == None
+
+def test_reuse_policy_object():
+    """
+    Explicitly test a bug fix in policy handling wherein the owner
+    field could get transformed into (and stay) a list thus ruining
+    second use. Not that second use is encourage, but it could happen.
+    """
+    policy = Policy()
+    policy.owner = 'campy'
+    bag = Bag('policytest1')
+    bag.policy = policy
+    store.put(bag)
+    bag = Bag('policytest2')
+    bag.policy = policy
+    store.put(bag)
+
+    bag1 = store.get(Bag('policytest1'))
+    bag2 = store.get(Bag('policytest2'))
+    assert bag1.policy.owner == 'campy'
+    assert bag2.policy.owner == 'campy'
+    assert bag1.policy.owner == bag2.policy.owner
 
 def test_tiddler_revisions():
     bag_name = u'bag8'

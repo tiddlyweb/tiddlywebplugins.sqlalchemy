@@ -693,32 +693,39 @@ class Store(StorageInterface):
         policies = []
         for attribute in policy.attributes:
             if attribute == 'owner':
-                policy.owner = policy.owner is None and [] or [policy.owner]
-
-            for principal_name in getattr(policy, attribute, []):
-                if principal_name != None:
-                    if principal_name.startswith('R:'):
-                        pname = principal_name[2:]
-                        ptype = u'R'
-                    else:
-                        pname = principal_name
-                        ptype = u'U'
-
-                    try:
-                        spolicy = self.session.query(sPolicy).filter(and_(
-                                sPolicy.constraint == attribute,
-                                sPolicy.principal_name == pname,
-                                sPolicy.principal_type == ptype)).one()
-                    except NoResultFound:
-                        spolicy = sPolicy()
-
-                        spolicy.constraint = attribute
-                        spolicy.principal_name = pname
-                        spolicy.principal_type = ptype
-                        self.session.add(spolicy)
-                    policies.append(spolicy)
+                value = policy.owner is None and [] or [policy.owner]
+            else:
+                value = getattr(policy, attribute, [])
+            spolicies = self._handle_policy_attribute(attribute, value)
+            policies.extend(spolicies)
 
         container.policy = policies
+
+    def _handle_policy_attribute(self, attribute, value):
+        spolicies = []
+        for principal_name in value:
+            if principal_name != None:
+                if principal_name.startswith('R:'):
+                    pname = principal_name[2:]
+                    ptype = u'R'
+                else:
+                    pname = principal_name
+                    ptype = u'U'
+
+                try:
+                    spolicy = self.session.query(sPolicy).filter(and_(
+                            sPolicy.constraint == attribute,
+                            sPolicy.principal_name == pname,
+                            sPolicy.principal_type == ptype)).one()
+                except NoResultFound:
+                    spolicy = sPolicy()
+
+                    spolicy.constraint = attribute
+                    spolicy.principal_name = pname
+                    spolicy.principal_type = ptype
+                    self.session.add(spolicy)
+                spolicies.append(spolicy)
+        return spolicies
 
     def _store_recipe(self, recipe):
         try:
