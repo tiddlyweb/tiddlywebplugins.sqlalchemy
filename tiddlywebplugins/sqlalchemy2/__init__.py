@@ -367,7 +367,6 @@ class Store(StorageInterface):
             for srecipe in recipes:
                 recipe = Recipe(srecipe.name)
                 recipe = self._load_recipe(recipe, srecipe)
-                recipe.store = self
                 yield recipe
             self.session.close()
         except:
@@ -380,7 +379,6 @@ class Store(StorageInterface):
             for sbag in bags:
                 bag = Bag(sbag.name)
                 bag = self._load_bag(bag, sbag)
-                bag.store = self
                 yield bag
             self.session.close()
         except:
