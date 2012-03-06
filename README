@@ -1,7 +1,7 @@
 This package provides a store for TiddlyWeb using sqlalchemy.
 
 This is a repackaging of the concepts and concerns of the original
-sqlstore and the sqlalchmey that followed, renamed to avoid schema
+sqlstore and the sqlalchemy that followed, renamed to avoid schema
 and other conflicts.
 
 See http://twp-sqlalchemy.tiddlyspace.com/ for documentation and
