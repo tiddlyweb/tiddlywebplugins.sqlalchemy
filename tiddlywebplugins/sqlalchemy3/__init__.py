@@ -62,6 +62,15 @@ first_revision_table = Table('first_revision', Base.metadata,
             index=True, nullable=False),
         UniqueConstraint('tiddler_id', 'first_id'))
 
+class sCurrentRevision(object):
+    pass
+
+class sFirstRevision(object):
+    pass
+
+mapper(sCurrentRevision, current_revision_table)
+mapper(sFirstRevision, first_revision_table)
+
 
 class sField(Base):
 
@@ -133,11 +142,11 @@ class sRevision(Base):
     fields=relationship('sField',
         cascade='all, delete-orphan',
         backref='fields',
-        lazy=False)
+        lazy=True)
     tags=relationship('sTag',
         cascade='all, delete-orphan',
         backref='tags',
-        lazy=False)
+        lazy=True)
     text=relationship('sText',
         cascade='all, delete-orphan',
         backref='revision_text',
@@ -511,12 +520,12 @@ class Store(StorageInterface):
             if not tiddler.bag:
                 raise NoBagError('bag required to save')
             try:
-                sbag = self.session.query(sBag).filter(sBag.name
+                sbag = self.session.query(sBag.id).filter(sBag.name
                         == tiddler.bag).one()
             except NoResultFound, exc:
                 raise NoBagError('bag must exist for tiddler save: %s', exc)
-            stiddler = self._store_tiddler(tiddler)
-            tiddler.revision = stiddler.current.number
+            current_revision_number = self._store_tiddler(tiddler)
+            tiddler.revision = current_revision_number
             self.session.commit()
         except:
             self.session.rollback()
@@ -683,7 +692,7 @@ class Store(StorageInterface):
             srecipe = self.session.query(sRecipe).filter(
                     sRecipe.name == recipe.name).one()
         except NoResultFound:
-            srecipe = sRecipe(recipe.name, recipe.desc)
+            srecipe = sRecipe(recipe.name)
             self.session.add(srecipe)
         srecipe.desc = recipe.desc
         self._store_policy(srecipe, recipe.policy)
@@ -709,7 +718,7 @@ class Store(StorageInterface):
             tiddler.text = unicode(b64encode(tiddler.text))
 
         try:
-            stiddler = self.session.query(sTiddler).filter(
+            stiddler = self.session.query(sTiddler.id).filter(
                     and_(sTiddler.title==tiddler.title,
                         sTiddler.bag==tiddler.bag)).one()
             newTiddler = False
@@ -717,8 +726,7 @@ class Store(StorageInterface):
             stiddler = sTiddler(tiddler.title, tiddler.bag)
             self.session.add(stiddler)
             newTiddler = True
-
-        self.session.flush()
+            self.session.flush()
 
         srevision = sRevision()
         srevision.type = tiddler.type
@@ -745,11 +753,19 @@ class Store(StorageInterface):
                 self.session.add(sfield)
 
         self.session.flush()
-        stiddler.current = srevision
-        if newTiddler:
-            stiddler.first = srevision
 
-        return stiddler
+        current_revision = sCurrentRevision()
+        current_revision.tiddler_id = stiddler.id
+        current_revision.current_id = srevision.number
+        self.session.merge(current_revision)
+
+        if newTiddler:
+            first_revision = sFirstRevision()
+            first_revision.tiddler_id = stiddler.id
+            first_revision.first_id = srevision.number
+            self.session.merge(first_revision)
+
+        return srevision.number
 
     def _store_user(self, user):
         suser = sUser()
