@@ -180,14 +180,14 @@ class sTiddler(Base):
             cascade='delete, delete-orphan')
 
     current=relationship('sRevision',
-            lazy=False,
+            lazy=True,
             uselist=False,
             secondary=current_revision_table,
             primaryjoin=id==current_revision_table.c.tiddler_id,
             secondaryjoin=current_revision_table.c.current_id==sRevision.number)
 
     first=relationship('sRevision',
-            lazy=False,
+            lazy=True,
             uselist=False,
             secondary=first_revision_table,
             primaryjoin=id==first_revision_table.c.tiddler_id,
