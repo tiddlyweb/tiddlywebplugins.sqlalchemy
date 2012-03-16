@@ -370,9 +370,11 @@ class Store(StorageInterface):
 
     def list_bag_tiddlers(self, bag):
         try:
-            query = self.session.query(sBag).filter(sBag.name == bag.name)
             try:
-                tiddlers = query.one().tiddlers
+                self.session.query(sBag.id).filter(
+                    sBag.name == bag.name).one()
+                tiddlers = self.session.query(sTiddler).filter(
+                        sTiddler.bag == bag.name).all()
             except NoResultFound, exc:
                 raise NoBagError('no results for bag %s, %s' % (bag.name, exc))
             self.session.close()
