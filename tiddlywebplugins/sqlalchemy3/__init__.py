@@ -744,7 +744,7 @@ class Store(StorageInterface):
         text.revision_number = srevision.number
         self.session.add(text)
 
-        for tag in tiddler.tags:
+        for tag in set(tiddler.tags):
             stag = sTag(tag)
             stag.revision_number = srevision.number
             self.session.add(stag)
