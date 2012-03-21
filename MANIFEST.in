@@ -1,2 +1,2 @@
 recursive-include test *
-include README Makefile COPYRIGHT
+include README Makefile COPYRIGHT mangler.py tiddlywebconfig.py
