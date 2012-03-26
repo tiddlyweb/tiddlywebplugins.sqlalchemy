@@ -161,7 +161,7 @@ class sRevision(Base):
 class sTiddler(Base):
     __tablename__ = 'tiddler'
     __table_args__ = (
-            UniqueConstraint('id', 'title', 'bag'),)
+            UniqueConstraint('title', 'bag'),)
 
     id = Column(Integer,
             primary_key=True,
