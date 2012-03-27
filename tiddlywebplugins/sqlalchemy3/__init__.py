@@ -37,29 +37,29 @@ Base = declarative_base()
 Session = scoped_session(sessionmaker())
 
 bag_policy_table = Table('bag_policy', Base.metadata,
-    Column('bag_id', Integer, ForeignKey('bag.id'), index=True,
-        nullable=False, primary_key=True),
+    Column('bag_id', Integer, ForeignKey('bag.id', ondelete='CASCADE'),
+        index=True, nullable=False, primary_key=True),
     Column('policy_id', Integer, ForeignKey('policy.id'), nullable=False,
         primary_key=True))
 
 recipe_policy_table = Table('recipe_policy', Base.metadata,
-    Column('recipe_id', Integer, ForeignKey('recipe.id'), index=True,
-        nullable=False, primary_key=True),
+    Column('recipe_id', Integer, ForeignKey('recipe.id', ondelete='CASCADE'),
+        index=True, nullable=False, primary_key=True),
     Column('policy_id', Integer, ForeignKey('policy.id'), nullable=False,
         primary_key=True))
 
 current_revision_table = Table('current_revision', Base.metadata,
-        Column('tiddler_id', Integer, ForeignKey('tiddler.id'),
-            index=True, nullable=False, primary_key=True),
-        Column('current_id', Integer, ForeignKey('revision.number'),
-            index=True, nullable=False),
+        Column('tiddler_id', Integer, ForeignKey('tiddler.id',
+            ondelete='CASCADE'), index=True, nullable=False, primary_key=True),
+        Column('current_id', Integer, ForeignKey('revision.number',
+            ondelete='CASCADE'), index=True, nullable=False),
         UniqueConstraint('tiddler_id', 'current_id'))
 
 first_revision_table = Table('first_revision', Base.metadata,
-        Column('tiddler_id', Integer, ForeignKey('tiddler.id'),
-            index=True, nullable=False, primary_key=True),
-        Column('first_id', Integer, ForeignKey('revision.number'),
-            index=True, nullable=False),
+        Column('tiddler_id', Integer, ForeignKey('tiddler.id',
+            ondelete='CASCADE'), index=True, nullable=False, primary_key=True),
+        Column('first_id', Integer, ForeignKey('revision.number',
+            ondelete='CASCADE'), index=True, nullable=False),
         UniqueConstraint('tiddler_id', 'first_id'))
 
 class sCurrentRevision(object):
@@ -77,7 +77,7 @@ class sField(Base):
     __tablename__ = 'field'
 
     revision_number = Column(Integer,
-            ForeignKey('revision.number'),
+            ForeignKey('revision.number', ondelete='CASCADE'),
             nullable=False, index=True, primary_key=True)
     name = Column(Unicode(64), nullable=False, index=True, primary_key=True)
     value = Column(Unicode(1024), nullable=False, index=True, primary_key=True)
@@ -96,7 +96,7 @@ class sTag(Base):
     __tablename__ = 'tag'
 
     revision_number = Column(Integer,
-            ForeignKey('revision.number'),
+            ForeignKey('revision.number', ondelete='CASCADE'),
             nullable=False, index=True, primary_key=True)
     tag = Column(Unicode(256), nullable=False, index=True,
             primary_key=True)
@@ -130,7 +130,7 @@ class sRevision(Base):
 
     __tablename__ = 'revision'
 
-    tiddler_id = Column(Integer, ForeignKey('tiddler.id'),
+    tiddler_id = Column(Integer, ForeignKey('tiddler.id', ondelete='CASCADE'),
             nullable=False,
             index=True)
     number = Column(Integer, primary_key=True, nullable=False,
@@ -167,7 +167,7 @@ class sTiddler(Base):
             primary_key=True,
             nullable=False,
             autoincrement=True)
-    bag = Column(Unicode(128), ForeignKey('bag.name'),
+    bag = Column(Unicode(128), ForeignKey('bag.name', ondelete='CASCADE'),
             index=True,
             nullable=False)
     title = Column(Unicode(128),
@@ -181,7 +181,9 @@ class sTiddler(Base):
 
     current=relationship('sRevision',
             lazy=True,
+            cascade='delete, delete-orphan',
             uselist=False,
+            single_parent=True,
             secondary=current_revision_table,
             primaryjoin=id==current_revision_table.c.tiddler_id,
             secondaryjoin=current_revision_table.c.current_id==sRevision.number)
@@ -189,6 +191,8 @@ class sTiddler(Base):
     first=relationship('sRevision',
             lazy=True,
             uselist=False,
+            cascade='delete, delete-orphan',
+            single_parent=True,
             secondary=first_revision_table,
             primaryjoin=id==first_revision_table.c.tiddler_id,
             secondaryjoin=first_revision_table.c.first_id==sRevision.number)
@@ -280,7 +284,7 @@ class sRole(Base):
 
     __tablename__ = 'role'
 
-    user = Column(Unicode(128), ForeignKey('user.usersign'),
+    user = Column(Unicode(128), ForeignKey('user.usersign', ondelete='CASCADE'),
             nullable=False, primary_key=True)
     name = Column(Unicode(50), nullable=False, primary_key=True)
 
