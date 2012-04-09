@@ -39,14 +39,14 @@ Session = scoped_session(sessionmaker())
 bag_policy_table = Table('bag_policy', Base.metadata,
     Column('bag_id', Integer, ForeignKey('bag.id', ondelete='CASCADE'),
         index=True, nullable=False, primary_key=True),
-    Column('policy_id', Integer, ForeignKey('policy.id'), nullable=False,
-        primary_key=True))
+    Column('policy_id', Integer, ForeignKey('policy.id', ondelete='CASCADE'),
+        nullable=False, primary_key=True))
 
 recipe_policy_table = Table('recipe_policy', Base.metadata,
     Column('recipe_id', Integer, ForeignKey('recipe.id', ondelete='CASCADE'),
         index=True, nullable=False, primary_key=True),
-    Column('policy_id', Integer, ForeignKey('policy.id'), nullable=False,
-        primary_key=True))
+    Column('policy_id', Integer, ForeignKey('policy.id', ondelete='CASCADE'),
+        nullable=False, primary_key=True))
 
 current_revision_table = Table('current_revision', Base.metadata,
         Column('tiddler_id', Integer, ForeignKey('tiddler.id',
