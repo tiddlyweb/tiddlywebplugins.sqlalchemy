@@ -480,10 +480,9 @@ class Store(StorageInterface):
     def tiddler_delete(self, tiddler):
         try:
             try:
-                stiddlers = (self.session.query(sTiddler).
+                rows = (self.session.query(sTiddler).
                         filter(sTiddler.title == tiddler.title).
-                        filter(sTiddler.bag == tiddler.bag))
-                rows = self.session.delete(stiddlers.one())
+                        filter(sTiddler.bag == tiddler.bag).delete())
                 if rows == 0:
                     raise NoResultFound
                 self.session.commit()
