@@ -500,8 +500,10 @@ class Store(StorageInterface):
                 if tiddler.revision:
                     revision = self.session.query(sRevision).filter(
                             sRevision.number==tiddler.revision).one()
-                    stiddler = self.session.query(sTiddler).filter(
-                            sTiddler.id==revision.tiddler_id).one()
+                    stiddler = self.session.query(sTiddler).filter(and_(
+                            sTiddler.id==revision.tiddler_id,
+                            sTiddler.title==tiddler.title,
+                            sTiddler.bag==tiddler.bag)).one()
                     current_revision = revision
                 else:
                     stiddler = self.session.query(sTiddler).filter(and_(
