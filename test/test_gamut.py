@@ -391,3 +391,18 @@ def test_bag_deletes_tiddlers():
 def test_saving_to_non_bag():
     tiddler = Tiddler('oh hi', 'nonexistentbag')
     py.test.raises(NoBagError, 'store.put(tiddler)')
+
+def test_revision_bug():
+    store.put(Bag('pone'))
+    tiddler = Tiddler('testone', 'pone')
+    tiddler.text = 'testone'
+    store.put(tiddler)
+    tiddler = Tiddler('testtwo', 'pone')
+    tiddler.text = 'testtwo'
+    store.put(tiddler)
+
+    tiddler = store.get(tiddler)
+    tiddler_rev = Tiddler('testone', 'pone')
+    tiddler_rev.revision = tiddler.revision
+
+    py.test.raises(NoTiddlerError, 'tiddler_rev = store.get(tiddler_rev)')
