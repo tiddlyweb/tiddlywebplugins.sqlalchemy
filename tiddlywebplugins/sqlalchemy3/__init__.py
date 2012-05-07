@@ -114,7 +114,7 @@ class sText(Base):
     __tablename__ = 'text'
 
     revision_number = Column('revision_number', Integer,
-            ForeignKey('revision.number'),
+            ForeignKey('revision.number', ondelete='CASCADE'),
             nullable=False, index=True, primary_key=True)
     text = Column(UnicodeText(16777215), nullable=False, default=u'')
 
