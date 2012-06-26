@@ -44,19 +44,19 @@ def test_make_a_bunch():
 
         bag = Bag(bag_name)
         bag.policy.owner = u'owner%s' % x
-        bag.policy.read = [u'hi%s' % x, 'andextra']
-        bag.policy.manage = [u'R:hi%s' % x, 'andmanage']
+        bag.policy.read = [u'hi%s' % x, u'andextra']
+        bag.policy.manage = [u'R:hi%s' % x, u'andmanage']
         store.put(bag)
         recipe = Recipe(recipe_name)
         recipe.policy.owner = u'owner%s' % x
-        recipe.policy.read = [u'hi%s' % x, 'andextra']
-        recipe.policy.manage = [u'R:hi%s' % x, 'andmanage']
+        recipe.policy.read = [u'hi%s' % x, u'andextra']
+        recipe.policy.manage = [u'R:hi%s' % x, u'andmanage']
         recipe.set_recipe(recipe_list)
         store.put(recipe)
         tiddler = Tiddler(tiddler_name, bag_name)
         tiddler.text = tiddler_text
         tiddler.fields[field_name] = field_name
-        tiddler.fields['server.host'] = 'gunky'
+        tiddler.fields['server.host'] = u'gunky'
         tiddler.tags = [tag_name]
         store.put(tiddler)
         user = User(user_name)
@@ -73,9 +73,9 @@ def test_make_a_bunch():
     assert len(recipes) == RANGE
     assert len(users) == RANGE
     for x in xrange(RANGE):
-        bname = 'bag%s' % x
-        rname = 'recipe%s' % x
-        uname = 'user%s' % x
+        bname = u'bag%s' % x
+        rname = u'recipe%s' % x
+        uname = u'user%s' % x
         assert bname in bags
         assert rname in recipes
         assert uname in users
@@ -99,11 +99,11 @@ def test_make_a_bunch():
     store.put(bag)
     bag = Bag('bag0')
     bag = store.get(bag)
-    assert bag.policy.read == ['andextra']
+    assert bag.policy.read == [u'andextra']
 
     bag = Bag('bag0')
     bag = store.get(bag)
-    bag.policy.read.append('hi0')
+    bag.policy.read.append(u'hi0')
     store.put(bag)
     bag = Bag('bag0')
     bag = store.get(bag)
@@ -127,7 +127,7 @@ def test_make_a_bunch():
     assert sorted(recipe.policy.manage) == ['R:hi2', 'andmanage']
     assert recipe.policy.owner == 'owner2'
 
-    recipe.policy.manage = ['andmanage']
+    recipe.policy.manage = [u'andmanage']
     store.put(recipe)
 
     recipe = Recipe ('recipe2')
@@ -186,7 +186,7 @@ def test_reuse_policy_object():
     second use. Not that second use is encourage, but it could happen.
     """
     policy = Policy()
-    policy.owner = 'campy'
+    policy.owner = u'campy'
     bag = Bag('policytest1')
     bag.policy = policy
     store.put(bag)
@@ -267,13 +267,13 @@ def test_list_tiddlers_no_bag():
 
 def test_2bag_policy():
     bag = Bag('pone')
-    bag.policy.read = ['cdent']
-    bag.policy.write = ['cdent']
+    bag.policy.read = [u'cdent']
+    bag.policy.write = [u'cdent']
     store.put(bag)
 
     bag = Bag('ptwo')
-    bag.policy.read = ['cdent', 'fnd']
-    bag.policy.write = ['cdent']
+    bag.policy.read = [u'cdent', u'fnd']
+    bag.policy.write = [u'cdent']
     store.put(bag)
 
     pone = store.get(Bag('pone'))
@@ -293,15 +293,15 @@ def test_2bag_policy():
     assert ptwo.policy.write == ['cdent']
 
     bag = Bag('pone')
-    bag.policy.read = ['cdent']
-    bag.policy.write = ['cdent']
+    bag.policy.read = [u'cdent']
+    bag.policy.write = [u'cdent']
     store.put(bag)
 
     pone = store.get(Bag('pone'))
     assert pone.policy.read == ['cdent']
     assert pone.policy.write == ['cdent']
 
-    pone.policy.read.append('fnd')
+    pone.policy.read.append(u'fnd')
 
     store.put(pone)
 
@@ -311,13 +311,13 @@ def test_2bag_policy():
 
 def test_2recipe_policy():
     recipe = Recipe('pone')
-    recipe.policy.read = ['cdent']
-    recipe.policy.write = ['cdent']
+    recipe.policy.read = [u'cdent']
+    recipe.policy.write = [u'cdent']
     store.put(recipe)
 
     recipe = Recipe('ptwo')
-    recipe.policy.read = ['cdent', 'fnd']
-    recipe.policy.write = ['cdent']
+    recipe.policy.read = [u'cdent', u'fnd']
+    recipe.policy.write = [u'cdent']
     store.put(recipe)
 
     pone = store.get(Recipe('pone'))
@@ -337,15 +337,15 @@ def test_2recipe_policy():
     assert ptwo.policy.write == ['cdent']
 
     recipe = Recipe('pone')
-    recipe.policy.read = ['cdent']
-    recipe.policy.write = ['cdent']
+    recipe.policy.read = [u'cdent']
+    recipe.policy.write = [u'cdent']
     store.put(recipe)
 
     pone = store.get(Recipe('pone'))
     assert pone.policy.read == ['cdent']
     assert pone.policy.write == ['cdent']
 
-    pone.policy.read.append('fnd')
+    pone.policy.read.append(u'fnd')
 
     store.put(pone)
 
@@ -355,11 +355,11 @@ def test_2recipe_policy():
 
 def test_revisions_deletions():
     tiddler = Tiddler('tone', 'pone')
-    tiddler.text = 'revision1'
-    tiddler.tags = ['1','2']
+    tiddler.text = u'revision1'
+    tiddler.tags = [u'1',u'2']
     store.put(tiddler)
-    tiddler.text = 'revision2'
-    tiddler.tags = ['3','4']
+    tiddler.text = u'revision2'
+    tiddler.tags = [u'3',u'4']
     store.put(tiddler)
 
     revisions = store.list_tiddler_revisions(tiddler)
@@ -395,10 +395,10 @@ def test_saving_to_non_bag():
 def test_revision_bug():
     store.put(Bag('pone'))
     tiddler = Tiddler('testone', 'pone')
-    tiddler.text = 'testone'
+    tiddler.text = u'testone'
     store.put(tiddler)
     tiddler = Tiddler('testtwo', 'pone')
-    tiddler.text = 'testtwo'
+    tiddler.text = u'testtwo'
     store.put(tiddler)
 
     tiddler = store.get(tiddler)
