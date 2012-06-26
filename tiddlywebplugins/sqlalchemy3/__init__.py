@@ -236,7 +236,7 @@ class sBag(Base):
 
     id = Column(Integer, primary_key=True, nullable=False,
             autoincrement=True)
-    name = Column(Unicode(128), index=True, unique=True)
+    name = Column(Unicode(128), index=True, nullable=False, unique=True)
     desc = Column(Unicode(1024))
 
     policy=relationship('sPolicy',
@@ -250,6 +250,7 @@ class sBag(Base):
         object.__init__(self)
         self.name = name
         self.desc = desc
+        self.policy = []
 
     def __repr__(self):
         return '<sBag(%s:%s)>' % (self.id, self.name)
@@ -264,7 +265,7 @@ class sRecipe(Base):
 
     id = Column(Integer, primary_key=True, nullable=False,
         autoincrement=True)
-    name = Column(Unicode(128), index=True, nullable=False)
+    name = Column(Unicode(128), index=True, nullable=False, unique=True)
     desc = Column(Unicode(1024))
     recipe_string = Column(UnicodeText, default=u'')
 
@@ -275,6 +276,7 @@ class sRecipe(Base):
     def __init__(self, name, desc=''):
         self.name = name
         self.desc = desc
+        self.policy = []
 
     def __repr__(self):
         return '<sRecipe(%s:%s)>' % (self.id, self.name)
@@ -587,17 +589,16 @@ class Store(StorageInterface):
     def _load_policy(self, spolicy):
         policy = Policy()
 
-        if spolicy is not None:
-            for pol in spolicy:
-                principal_name = pol.principal_name
-                if pol.principal_type == 'R':
-                    principal_name = 'R:%s' % principal_name
-                if pol.constraint == 'owner':
-                    policy.owner = principal_name
-                else:
-                    principals = getattr(policy, pol.constraint, [])
-                    principals.append(principal_name)
-                    setattr(policy, pol.constraint, principals)
+        for pol in spolicy:
+            principal_name = pol.principal_name
+            if pol.principal_type == 'R':
+                principal_name = 'R:%s' % principal_name
+            if pol.constraint == 'owner':
+                policy.owner = principal_name
+            else:
+                principals = getattr(policy, pol.constraint, [])
+                principals.append(principal_name)
+                setattr(policy, pol.constraint, principals)
         return policy
 
     def _load_tiddler(self, tiddler, current_revision, base_revision):
