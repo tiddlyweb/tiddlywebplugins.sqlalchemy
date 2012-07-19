@@ -1,10 +1,9 @@
 
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import scoped_session, sessionmaker
-from sqlalchemy.schema import (Table, Column, PrimaryKeyConstraint,
-        UniqueConstraint, ForeignKey, ForeignKeyConstraint, Index)
+from sqlalchemy.schema import (Table, Column, UniqueConstraint, ForeignKey)
 from sqlalchemy.types import Unicode, Integer, String, UnicodeText, CHAR
-from sqlalchemy.orm import relationship, mapper 
+from sqlalchemy.orm import relationship, mapper
 
 Base = declarative_base()
 Session = scoped_session(sessionmaker())
@@ -35,11 +34,14 @@ first_revision_table = Table('first_revision', Base.metadata,
             ondelete='CASCADE'), index=True, nullable=False),
         UniqueConstraint('tiddler_id', 'first_id'))
 
+
 class sCurrentRevision(object):
     pass
 
+
 class sFirstRevision(object):
     pass
+
 
 mapper(sCurrentRevision, current_revision_table)
 mapper(sFirstRevision, first_revision_table)
@@ -112,15 +114,15 @@ class sRevision(Base):
     modified = Column(String(14), index=True)
     type = Column(String(128), index=True)
 
-    fields=relationship('sField',
+    fields = relationship('sField',
         cascade='all, delete-orphan',
         backref='fields',
         lazy=True)
-    tags=relationship('sTag',
+    tags = relationship('sTag',
         cascade='all, delete-orphan',
         backref='tags',
         lazy=True)
-    text=relationship('sText',
+    text = relationship('sText',
         cascade='all, delete-orphan',
         backref='revision_text',
         uselist=False,
@@ -147,28 +149,29 @@ class sTiddler(Base):
             index=True,
             nullable=False)
 
-    revisions=relationship('sRevision',
+    revisions = relationship('sRevision',
             order_by="desc(sRevision.number)",
             lazy=True,
             cascade='delete, delete-orphan')
 
-    current=relationship('sRevision',
+    current = relationship('sRevision',
             lazy=True,
             cascade='delete, delete-orphan',
             uselist=False,
             single_parent=True,
             secondary=current_revision_table,
-            primaryjoin=id==current_revision_table.c.tiddler_id,
-            secondaryjoin=current_revision_table.c.current_id==sRevision.number)
+            primaryjoin=(id == current_revision_table.c.tiddler_id),
+            secondaryjoin=(
+                current_revision_table.c.current_id == sRevision.number))
 
-    first=relationship('sRevision',
+    first = relationship('sRevision',
             lazy=True,
             uselist=False,
             cascade='delete, delete-orphan',
             single_parent=True,
             secondary=first_revision_table,
-            primaryjoin=id==first_revision_table.c.tiddler_id,
-            secondaryjoin=first_revision_table.c.first_id==sRevision.number)
+            primaryjoin=(id == first_revision_table.c.tiddler_id),
+            secondaryjoin=first_revision_table.c.first_id == sRevision.number)
 
     def __init__(self, title, bag):
         object.__init__(self)
@@ -212,7 +215,7 @@ class sBag(Base):
     name = Column(Unicode(128), index=True, nullable=False, unique=True)
     desc = Column(Unicode(1024))
 
-    policy=relationship('sPolicy',
+    policy = relationship('sPolicy',
             secondary=bag_policy_table,
             lazy=False)
     tiddlers = relationship('sTiddler',
@@ -235,14 +238,13 @@ class sRecipe(Base):
     __table_args = (
             UniqueConstraint('id', 'name'))
 
-
     id = Column(Integer, primary_key=True, nullable=False,
         autoincrement=True)
     name = Column(Unicode(128), index=True, nullable=False, unique=True)
     desc = Column(Unicode(1024))
     recipe_string = Column(UnicodeText, default=u'')
 
-    policy=relationship('sPolicy',
+    policy = relationship('sPolicy',
             secondary=recipe_policy_table,
             lazy=False)
 
@@ -259,8 +261,9 @@ class sRole(Base):
 
     __tablename__ = 'role'
 
-    user = Column(Unicode(128), ForeignKey('user.usersign', ondelete='CASCADE'),
-            nullable=False, primary_key=True)
+    user = Column(Unicode(128),
+            ForeignKey('user.usersign', ondelete='CASCADE'), nullable=False,
+            primary_key=True)
     name = Column(Unicode(50), nullable=False, primary_key=True)
 
     def __repr__(self):
@@ -275,10 +278,9 @@ class sUser(Base):
     note = Column(Unicode(1024))
     password = Column(String(128))
 
-    roles=relationship(sRole,
+    roles = relationship(sRole,
             lazy=False,
             cascade='delete')
 
     def __repr__(self):
         return '<sUser(%s)>' % (self.usersign)
-
