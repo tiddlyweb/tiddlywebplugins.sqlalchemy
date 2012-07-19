@@ -122,7 +122,7 @@ class Store(StorageInterface):
                         sTiddler.title == tiddler.title,
                         sTiddler.bag == tiddler.bag)).one().revisions
             except NoResultFound, exc:
-                raise NoTiddlerError('tiddler %s not found: %s' %(
+                raise NoTiddlerError('tiddler %s not found: %s' % (
                     tiddler.title, exc))
 
             return [revision.number for revision in revisions]
@@ -225,16 +225,16 @@ class Store(StorageInterface):
             try:
                 if tiddler.revision:
                     revision = self.session.query(sRevision).filter(
-                            sRevision.number==tiddler.revision).one()
+                            sRevision.number == tiddler.revision).one()
                     stiddler = self.session.query(sTiddler).filter(and_(
-                            sTiddler.id==revision.tiddler_id,
-                            sTiddler.title==tiddler.title,
-                            sTiddler.bag==tiddler.bag)).one()
+                            sTiddler.id == revision.tiddler_id,
+                            sTiddler.title == tiddler.title,
+                            sTiddler.bag == tiddler.bag)).one()
                     current_revision = revision
                 else:
                     stiddler = self.session.query(sTiddler).filter(and_(
-                            sTiddler.title==tiddler.title,
-                            sTiddler.bag==tiddler.bag)).one()
+                            sTiddler.title == tiddler.title,
+                            sTiddler.bag == tiddler.bag)).one()
                     current_revision = stiddler.current
                 base_revision = stiddler.first
                 tiddler = self._load_tiddler(tiddler, current_revision,
@@ -362,8 +362,8 @@ class Store(StorageInterface):
         recipe = []
         if recipe_string:
             for line in recipe_string.split('\n'):
-                bag, filter = line.rsplit('?', 1)
-                recipe.append((bag, filter))
+                bag, filter_string = line.rsplit('?', 1)
+                recipe.append((bag, filter_string))
         return recipe
 
     def _load_user(self, user, suser):
@@ -454,13 +454,13 @@ class Store(StorageInterface):
 
         try:
             stiddler = self.session.query(sTiddler.id).filter(
-                    and_(sTiddler.title==tiddler.title,
-                        sTiddler.bag==tiddler.bag)).one()
-            newTiddler = False
+                    and_(sTiddler.title == tiddler.title,
+                        sTiddler.bag == tiddler.bag)).one()
+            new_tiddler = False
         except NoResultFound:
             stiddler = sTiddler(tiddler.title, tiddler.bag)
             self.session.add(stiddler)
-            newTiddler = True
+            new_tiddler = True
             self.session.flush()
 
         srevision = sRevision()
@@ -500,7 +500,7 @@ class Store(StorageInterface):
         current_revision.current_id = srevision.number
         self.session.merge(current_revision)
 
-        if newTiddler:
+        if new_tiddler:
             first_revision = sFirstRevision()
             first_revision.tiddler_id = stiddler.id
             first_revision.first_id = srevision.number
