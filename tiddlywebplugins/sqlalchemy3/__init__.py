@@ -429,9 +429,9 @@ class Store(StorageInterface):
         except NoResultFound:
             srecipe = sRecipe(recipe.name)
             self.session.add(srecipe)
+        srecipe.recipe_string = self._store_recipe_string(recipe.get_recipe())
         srecipe.desc = recipe.desc
         self._store_policy(srecipe, recipe.policy)
-        srecipe.recipe_string = self._store_recipe_string(recipe.get_recipe())
         return srecipe
 
     def _store_recipe_string(self, recipe_list):

@@ -90,7 +90,7 @@ class sText(Base):
 
     revision_number = Column('revision_number', Integer,
             ForeignKey('revision.number', ondelete='CASCADE'),
-            nullable=False, index=True, primary_key=True)
+            nullable=False, primary_key=True)
     text = Column(UnicodeText(16777215), nullable=False, default=u'')
 
     def __init__(self, text):

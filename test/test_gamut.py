@@ -309,6 +309,12 @@ def test_2bag_policy():
 
     assert sorted(pone.policy.read) == ['cdent', 'fnd']
 
+    pone.policy.read = [u'cdent']
+    store.put(pone)
+
+    pone2 = store.get(Bag('pone'))
+    assert pone2.policy.read == ['cdent']
+
 def test_2recipe_policy():
     recipe = Recipe('pone')
     recipe.policy.read = [u'cdent']
