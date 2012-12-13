@@ -472,14 +472,8 @@ class Store(StorageInterface):
 
         self.session.flush()
 
-        # Do text inserts "raw" so we can use DELAYED
-        if 'mysql_engine' in sText.__table__.kwargs:
-            prefix = 'DELAYED'
-        else:
-            prefix = ''
         text_insert = (sText.__table__.insert()
-                .prefix_with(prefix).values(text=tiddler.text,
-                    revision_number=srevision.number))
+                .values(text=tiddler.text, revision_number=srevision.number))
         self.session.execute(text_insert)
 
         for tag in set(tiddler.tags):
