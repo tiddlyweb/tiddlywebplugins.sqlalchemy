@@ -9,8 +9,8 @@ import logging
 from tiddlyweb import __version__ as VERSION
 
 from base64 import b64encode, b64decode
-from sqlalchemy import select, desc
-from sqlalchemy.engine import create_engine
+from sqlalchemy import select, desc, event
+from sqlalchemy.engine import create_engine, Engine
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.sql.expression import and_
 
@@ -57,6 +57,14 @@ class Store(StorageInterface):
         Session.configure(bind=engine)
         self.session = Session()
         self.serializer = Serializer('text')
+
+        # turn on foreign keys for sqlite (the default engine)
+        if 'sqlite' in self.store_type:
+            @event.listens_for(Engine, 'connect')
+            def set_sqlite_pragma(dbapi_connection, connection_record):
+                cursor = dbapi_connection.cursor()
+                cursor.execute('PRAGMA foreign_keys=ON')
+                cursor.close()
 
         if not Store.mapped:
             Base.metadata.create_all(engine)
@@ -135,9 +143,10 @@ class Store(StorageInterface):
     def recipe_delete(self, recipe):
         try:
             try:
-                srecipe = self.session.query(sRecipe).filter(sRecipe.name
-                        == recipe.name).one()
-                self.session.delete(srecipe)
+                rows = self.session.query(sRecipe).filter(sRecipe.name
+                        == recipe.name).delete()
+                if rows == 0:
+                    raise NoResultFound
                 self.session.commit()
             except NoResultFound, exc:
                 raise NoRecipeError('no results for recipe %s, %s' %
@@ -172,9 +181,10 @@ class Store(StorageInterface):
     def bag_delete(self, bag):
         try:
             try:
-                sbag = self.session.query(sBag).filter(sBag.name
-                        == bag.name).one()
-                self.session.delete(sbag)
+                rows = self.session.query(sBag).filter(sBag.name
+                        == bag.name).delete()
+                if rows == 0:
+                    raise NoResultFound
                 self.session.commit()
             except NoResultFound, exc:
                 raise NoBagError('Bag %s not found: %s' % (bag.name, exc))
@@ -269,9 +279,10 @@ class Store(StorageInterface):
     def user_delete(self, user):
         try:
             try:
-                suser = self.session.query(sUser).filter(sUser.usersign
-                        == user.usersign).one()
-                self.session.delete(suser)
+                rows = self.session.query(sUser).filter(sUser.usersign
+                        == user.usersign).delete()
+                if rows == 0:
+                    raise NoResultFound
                 self.session.commit()
             except NoResultFound, exc:
                 raise NoUserError('user %s not found, %s' %

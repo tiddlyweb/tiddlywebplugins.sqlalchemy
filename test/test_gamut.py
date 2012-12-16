@@ -14,19 +14,19 @@ from tiddlyweb.model.user import User
 
 from base64 import b64encode
 
+from tiddlywebplugins.sqlalchemy3 import Base
+
 #RANGE = 1000
 RANGE = 10
 
 def setup_module(module):
-    try:
-        os.unlink('test.db')
-    except OSError:
-        pass # s'alright, it's not there
     module.store = Store(
             config['server_store'][0],
             config['server_store'][1],
             {'tiddlyweb.config': config}
             )
+    Base.metadata.drop_all()
+    Base.metadata.create_all()
 
 def test_make_a_bunch():
     for x in xrange(RANGE):
