@@ -6,10 +6,8 @@ from __future__ import absolute_import
 
 import logging
 
-from tiddlyweb import __version__ as VERSION
-
 from base64 import b64encode, b64decode
-from sqlalchemy import select, desc, event
+from sqlalchemy import event
 from sqlalchemy.engine import create_engine, Engine
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.sql.expression import and_
@@ -28,7 +26,7 @@ from tiddlyweb.util import binary_tiddler
 from .model import (Base, Session, sBag, sPolicy, sRecipe, sTiddler, sRevision,
         sText, sTag, sField, sCurrentRevision, sFirstRevision, sUser, sRole)
 
-__version__ = '3.0.13'
+__version__ = '3.0.14'
 
 #logging.basicConfig()
 #logging.getLogger('sqlalchemy.engine').setLevel(logging.INFO)
@@ -416,7 +414,7 @@ class Store(StorageInterface):
     def _handle_policy_attribute(self, attribute, value):
         spolicies = []
         for principal_name in value:
-            if principal_name != None:
+            if principal_name is not None:
                 if principal_name.startswith('R:'):
                     pname = principal_name[2:]
                     ptype = u'R'
