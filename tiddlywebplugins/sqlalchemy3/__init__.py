@@ -234,8 +234,13 @@ class Store(StorageInterface):
         try:
             try:
                 if tiddler.revision:
+                    try:
+                        revision_value = int(tiddler.revision)
+                    except ValueError, exc:
+                        raise NoTiddlerError('%s is not a valid revision id'
+                                % tiddler.revision)
                     revision = self.session.query(sRevision).filter(
-                            sRevision.number == tiddler.revision).one()
+                            sRevision.number == revision_value).one()
                     stiddler = self.session.query(sTiddler).filter(and_(
                             sTiddler.id == revision.tiddler_id,
                             sTiddler.title == tiddler.title,

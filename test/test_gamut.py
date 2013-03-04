@@ -412,3 +412,13 @@ def test_revision_bug():
     tiddler_rev.revision = tiddler.revision
 
     py.test.raises(NoTiddlerError, 'tiddler_rev = store.get(tiddler_rev)')
+
+def test_revision_type_bug():
+    tiddler = Tiddler('testtwo', 'pone')
+    tiddler.text = u'testone'
+    store.put(tiddler)
+    store.put(tiddler)
+
+    # Invalid revision
+    tiddler.revision = 'I have a monkey'
+    py.test.raises(NoTiddlerError, 'tiddler = store.get(tiddler)')
