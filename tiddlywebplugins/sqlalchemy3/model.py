@@ -55,7 +55,7 @@ class sField(Base):
             ForeignKey('revision.number', ondelete='CASCADE'),
             nullable=False, index=True, primary_key=True)
     name = Column(Unicode(64), nullable=False, index=True, primary_key=True)
-    value = Column(Unicode(1024), nullable=False, index=True, primary_key=True)
+    value = Column(Unicode(1024), nullable=False, index=True)
 
     def __init__(self, name, value):
         object.__init__(self)
