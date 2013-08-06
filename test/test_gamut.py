@@ -422,3 +422,24 @@ def test_revision_type_bug():
     # Invalid revision
     tiddler.revision = 'I have a monkey'
     py.test.raises(NoTiddlerError, 'tiddler = store.get(tiddler)')
+
+def test_emoji_title():
+    # emoji smiley of some sort
+    title = '\xF0\x9F\x98\x97'.decode('utf-8')
+    store.put(Bag(title))
+
+    tiddler = Tiddler(title, title)
+    tiddler.text = u'some stuff and zomg %s' % title
+    tiddler.tags = [title]
+    tiddler.fields[title] = title
+    store.put(tiddler)
+
+    tiddler2 = store.get(Tiddler(title, title))
+
+    assert tiddler2.title == title
+    assert tiddler2.text == tiddler.text
+    assert tiddler2.tags == tiddler.tags
+    assert tiddler2.tags[0] == title
+    assert tiddler2.fields[title] == tiddler.fields[title]
+    assert tiddler2.fields[title] == title
+            
