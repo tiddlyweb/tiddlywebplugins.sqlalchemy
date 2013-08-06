@@ -26,7 +26,7 @@ from tiddlyweb.util import binary_tiddler
 from .model import (Base, Session, sBag, sPolicy, sRecipe, sTiddler, sRevision,
         sText, sTag, sField, sCurrentRevision, sFirstRevision, sUser, sRole)
 
-__version__ = '3.0.15'
+__version__ = '3.0.16'
 
 #logging.basicConfig()
 #logging.getLogger('sqlalchemy.engine').setLevel(logging.INFO)
