@@ -1,8 +1,8 @@
 This package provides a store for TiddlyWeb using sqlalchemy.
 
-This is a repackaging of the concepts and concerns of the original
-sqlstore and the sqlalchemy that followed, renamed to avoid schema
-and other conflicts.
+Any database system supported by sqlalchemy should be usable.
 
-See http://twp-sqlalchemy.tiddlyspace.com/ for documentation and
+See tiddlywebplugins.mysql3 for a derivative optimized for MySQL.
+
+See http://tiddlyweb-sql.tiddlyspace.com/ for documentation and
 assistance.
