@@ -17,7 +17,7 @@ class Producer(object):
     Turn a tiddlywebplugins.sqalchemy3.parser AST into a sqlalchemy query.
     """
 
-    def produce(self, ast, query, fulltext=False):
+    def produce(self, ast, query, fulltext=False, geo=False):
         """
         Given an ast and an empty query, build that query into a
         full select, based on the info in the ast.
@@ -32,6 +32,7 @@ class Producer(object):
         self.limit = None
         self.query = query
         self.fulltext = fulltext
+        self.geo = geo
         expressions = self._eval(ast, None)
         if self.limit:
             self.query = self.query.filter(expressions).limit(self.limit)
@@ -108,7 +109,7 @@ class Producer(object):
                             expression = (sTag.tag.like(value))
                         else:
                             expression = (sTag.tag == value)
-            elif fieldname == 'near':
+            elif fieldname == 'near' and self.geo:
                 # proximity search on geo.long, geo.lat based on
                 # http://cdent.tiddlyspace.com/bags/cdent_public/tiddlers/Proximity%20Search.html
                 try:

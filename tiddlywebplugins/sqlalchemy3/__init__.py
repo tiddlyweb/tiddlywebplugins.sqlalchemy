@@ -51,6 +51,7 @@ class Store(StorageInterface):
         self.store_type = self._db_config().split(':', 1)[0]
         self.parser = DEFAULT_PARSER
         self.producer = Producer()
+        self.has_geo = False
         self._init_store()
 
     def _init_store(self):
@@ -342,7 +343,8 @@ class Store(StorageInterface):
             try:
                 ast = self.parser(search_query)[0]
                 fulltext = config.get('mysql.fulltext', False)
-                query = self.producer.produce(ast, query, fulltext=fulltext)
+                query = self.producer.produce(ast, query, fulltext=fulltext,
+                        geo=self.has_geo)
             except ParseException, exc:
                 raise StoreError('failed to parse search query: %s' % exc)
 
