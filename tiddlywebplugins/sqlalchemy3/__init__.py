@@ -21,7 +21,6 @@ from tiddlyweb.model.policy import Policy
 from tiddlyweb.model.recipe import Recipe
 from tiddlyweb.model.tiddler import Tiddler
 from tiddlyweb.model.user import User
-from tiddlyweb.serializer import Serializer
 from tiddlyweb.store import (NoBagError, NoRecipeError, NoTiddlerError,
         NoUserError, StoreError)
 from tiddlyweb.stores import StorageInterface
@@ -63,7 +62,6 @@ class Store(StorageInterface):
         Base.metadata.bind = engine
         Session.configure(bind=engine)
         self.session = Session()
-        self.serializer = Serializer('text')
 
         # turn on foreign keys for sqlite (the default engine)
         if 'sqlite' in self.store_type:
