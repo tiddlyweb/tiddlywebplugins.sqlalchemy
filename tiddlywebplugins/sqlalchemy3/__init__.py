@@ -6,12 +6,16 @@ from __future__ import absolute_import
 
 import logging
 
+from pyparsing import ParseException
+
 from base64 import b64encode, b64decode
 from sqlalchemy import event
 from sqlalchemy.engine import create_engine, Engine
+from sqlalchemy.exc import ProgrammingError
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.sql.expression import and_
 
+from tiddlyweb.filters import FilterIndexRefused
 from tiddlyweb.model.bag import Bag
 from tiddlyweb.model.policy import Policy
 from tiddlyweb.model.recipe import Recipe
@@ -25,6 +29,8 @@ from tiddlyweb.util import binary_tiddler
 
 from .model import (Base, Session, sBag, sPolicy, sRecipe, sTiddler, sRevision,
         sText, sTag, sField, sCurrentRevision, sFirstRevision, sUser, sRole)
+from .parser import DEFAULT_PARSER
+from .producer import Producer
 
 __version__ = '3.0.16'
 
@@ -43,6 +49,8 @@ class Store(StorageInterface):
     def __init__(self, store_config=None, environ=None):
         super(Store, self).__init__(store_config, environ)
         self.store_type = self._db_config().split(':', 1)[0]
+        self.parser = DEFAULT_PARSER
+        self.producer = Producer()
         self._init_store()
 
     def _init_store(self):
@@ -319,6 +327,42 @@ class Store(StorageInterface):
             self.session.rollback()
             raise
 
+    def search(self, search_query=''):
+        """
+        Do a search of of the database, using the 'q' query,
+        parsed by the parser and turned into a producer.
+        """
+        query = self.session.query(sTiddler).join('current')
+        if '_limit:' not in search_query:
+            default_limit = self.environ.get(
+                    'tiddlyweb.config', {}).get(
+                            'mysql.search_limit', '20')
+            search_query += ' _limit:%s' % default_limit
+        try:
+            try:
+                ast = self.parser(search_query)[0]
+                config = self.environ['tiddlyweb.config']
+                fulltext = config.get('mysql.fulltext', False)
+                query = self.producer.produce(ast, query, fulltext=fulltext)
+            except ParseException, exc:
+                raise StoreError('failed to parse search query: %s' % exc)
+
+            try:
+                for stiddler in query.all():
+                    try:
+                        yield Tiddler(unicode(stiddler.title),
+                                unicode(stiddler.bag))
+                    except AttributeError:
+                        stiddler = stiddler[0]
+                        yield Tiddler(unicode(stiddler.title),
+                                unicode(stiddler.bag))
+                self.session.close()
+            except ProgrammingError, exc:
+                raise StoreError('generated search SQL incorrect: %s' % exc)
+        except:
+            self.session.rollback()
+            raise
+
     def _load_bag(self, bag, sbag):
         bag.desc = sbag.desc
         bag.policy = self._load_policy(sbag.policy)
@@ -522,3 +566,33 @@ class Store(StorageInterface):
         suser.password = user._password
         suser.note = user.note
         return suser
+
+
+def index_query(environ, **kwargs):
+    """
+    Attempt to optimize filter processing by using the search index
+    to provide results that can be matched.
+
+    In practice, this proves not to be that helpful when memcached
+    is being used, but it is in other situations.
+    """
+    store = environ['tiddlyweb.store']
+
+    queries = []
+    for key, value in kwargs.items():
+        if '"' in value:
+            # XXX The current parser is currently unable to deal with
+            # nested quotes. Rather than running the risk of tweaking
+            # the parser with unclear results, we instead just refuse
+            # for now. Later this can be fixed for real.
+            raise FilterIndexRefused('unable to process values with quotes')
+        queries.append('%s:"%s"' % (key, value))
+    query = ' '.join(queries)
+
+    storage = store.storage
+
+    try:
+        tiddlers = storage.search(search_query=query)
+        return (store.get(tiddler) for tiddler in tiddlers)
+    except StoreError, exc:
+        raise FilterIndexRefused('error in the store: %s' % exc)
