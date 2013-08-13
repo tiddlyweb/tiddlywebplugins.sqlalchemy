@@ -14,7 +14,7 @@ from tiddlywebplugins.sqlalchemy3 import (sField, sTag, sText, sTiddler,
 
 class Producer(object):
     """
-    Turn a tiddlywebplugins.mysql.parser AST into a sqlalchemy query.
+    Turn a tiddlywebplugins.sqalchemy3.parser AST into a sqlalchemy query.
     """
 
     def produce(self, ast, query, fulltext=False):

@@ -333,15 +333,14 @@ class Store(StorageInterface):
         parsed by the parser and turned into a producer.
         """
         query = self.session.query(sTiddler).join('current')
+        config = self.environ.get('tiddlyweb.config', {})
         if '_limit:' not in search_query:
-            default_limit = self.environ.get(
-                    'tiddlyweb.config', {}).get(
-                            'mysql.search_limit', '20')
+            default_limit = config.get('mysql.search_limit',
+                    config.get('sqlalchemy3.search_limit', '20'))
             search_query += ' _limit:%s' % default_limit
         try:
             try:
                 ast = self.parser(search_query)[0]
-                config = self.environ['tiddlyweb.config']
                 fulltext = config.get('mysql.fulltext', False)
                 query = self.producer.produce(ast, query, fulltext=fulltext)
             except ParseException, exc:
