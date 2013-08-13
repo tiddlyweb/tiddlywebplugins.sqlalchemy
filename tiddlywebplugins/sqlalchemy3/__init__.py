@@ -23,7 +23,7 @@ from tiddlyweb.model.tiddler import Tiddler
 from tiddlyweb.model.user import User
 from tiddlyweb.serializer import Serializer
 from tiddlyweb.store import (NoBagError, NoRecipeError, NoTiddlerError,
-        NoUserError)
+        NoUserError, StoreError)
 from tiddlyweb.stores import StorageInterface
 from tiddlyweb.util import binary_tiddler
 
@@ -179,7 +179,7 @@ class Store(StorageInterface):
 
     def recipe_put(self, recipe):
         try:
-            srecipe = self._store_recipe(recipe)
+            self._store_recipe(recipe)
             self.session.commit()
         except:
             self.session.rollback()
@@ -215,7 +215,7 @@ class Store(StorageInterface):
 
     def bag_put(self, bag):
         try:
-            sbag = self._store_bag(bag)
+            self._store_bag(bag)
             self.session.commit()
         except:
             self.session.rollback()
@@ -276,7 +276,7 @@ class Store(StorageInterface):
             if not tiddler.bag:
                 raise NoBagError('bag required to save')
             try:
-                sbag = self.session.query(sBag.id).filter(sBag.name
+                self.session.query(sBag.id).filter(sBag.name
                         == tiddler.bag).one()
             except NoResultFound, exc:
                 raise NoBagError('bag %s must exist for tiddler save: %s'
