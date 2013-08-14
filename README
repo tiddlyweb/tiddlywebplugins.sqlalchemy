@@ -1,8 +1,23 @@
-This package provides a store for TiddlyWeb using sqlalchemy.
+tiddlywebplugins.sqlalchemy3
+============================
+_A store for [TiddlyWeb](http://tiddlyweb.com) that uses [sqlalchemy](http://www.sqlalchemy.org)._
 
 Any database system supported by sqlalchemy should be usable.
 
-See tiddlywebplugins.mysql3 for a derivative optimized for MySQL.
+Beyond storing recipes, bags, tiddlers and users, this store also:
 
-See http://tiddlyweb-sql.tiddlyspace.com/ for documentation and
+* Provides a robust search system that translates structured queries
+  to reasonable SQL, allowing fast searches for tiddlers by attributes
+  and fields.
+* Provides an `index_query` method that allows the store to be used as
+  an `indexer` optimizing `select` filters.
+
+See
+[tiddlywebplugins.mysql3](https://github.com/cdent/tiddlywebplugins.mysql)
+for a derivative optimized for MySQL.
+
+See <http://tiddlyweb-sql.tiddlyspace.com/> for additional documentation and
 assistance.
+
+tiddlywebplugins.sqlalchemy3 created by Chris Dent.
+Copyright (c) UnaMesa Association 2010-2013
