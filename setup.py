@@ -2,7 +2,7 @@ AUTHOR = 'Chris Dent'
 AUTHOR_EMAIL = 'cdent@peermore.com'
 NAME = 'tiddlywebplugins.sqlalchemy3'
 DESCRIPTION = 'sqlalchemy store for tiddlyweb'
-VERSION = '3.0.16' # make sure you update in __init__ too
+VERSION = '3.1.0' # make sure you update in __init__ too
 
 
 import os
@@ -25,6 +25,7 @@ setup(
     install_requires = ['setuptools',
         'tiddlyweb>=1.2.0',
         'sqlalchemy',
+        'pyparsing<2.0.0',
         ],
     zip_safe = False,
     license = 'BSD'

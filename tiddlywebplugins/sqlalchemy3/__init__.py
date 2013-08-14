@@ -31,7 +31,7 @@ from .model import (Base, Session, sBag, sPolicy, sRecipe, sTiddler, sRevision,
 from .parser import DEFAULT_PARSER
 from .producer import Producer
 
-__version__ = '3.0.16'
+__version__ = '3.1.0'
 
 #logging.basicConfig()
 #logging.getLogger('sqlalchemy.engine').setLevel(logging.INFO)
