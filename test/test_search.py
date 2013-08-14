@@ -58,7 +58,7 @@ def test_index_query_filter():
     assert tiddlers[0].title == 'tiddler1'
     assert tiddlers[0].bag == 'bag1'
 
-def test_index_query_filter_fields():
+def test_index_query_filter_field():
     kwords = {'house': u'cottage'}
     tiddlers = list(index_query(environ, **kwords))
 
@@ -209,7 +209,8 @@ def test_limited_search():
     tiddlers = list(store.search(u'starts'))
     assert len(tiddlers) != 1, tiddlers
 
-    tiddlers = list(store.search(u'starts _limit:so'))
+    # confirm things don't explode when a non int limit is provided
+    tiddlers = list(store.search(u'starts _limit:notint'))
     assert len(tiddlers) != 1, tiddlers
 
 def test_modified():
