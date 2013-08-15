@@ -2,7 +2,7 @@ AUTHOR = 'Chris Dent'
 AUTHOR_EMAIL = 'cdent@peermore.com'
 NAME = 'tiddlywebplugins.sqlalchemy3'
 DESCRIPTION = 'sqlalchemy store for tiddlyweb'
-VERSION = '3.1.0' # make sure you update in __init__ too
+VERSION = '3.1.1' # make sure you update in __init__ too
 
 
 import os
